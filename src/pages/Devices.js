@@ -212,101 +212,117 @@ const Devices = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+      {/* Header with Actions */}
+      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Device Management
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Devices
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage and monitor your smart home devices
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
+            Manage your smart home devices
           </p>
         </div>
         
-        <div className="flex items-center space-x-4 mt-4 sm:mt-0">
+        <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-3">
+          {/* View Mode Toggle - Hidden on mobile */}
+          <div className="hidden sm:flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <Icon name="grid-3x3" size={16} className="mr-1.5" />
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <Icon name="list" size={16} className="mr-1.5" />
+              List
+            </button>
+          </div>
+
           <button
             onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
+            className="btn btn-primary w-full sm:w-auto"
           >
-            <Icon name="plus" size={20} className="mr-2" />
+            <Icon name="plus" size={18} className="mr-2" />
             Add Device
           </button>
           
           <button
             onClick={handleAutoDetect}
-            className="btn btn-secondary"
-            disabled={!connectionStatus.connected}
+            className="btn btn-secondary w-full sm:w-auto"
           >
-            <Icon name="search" size={20} className="mr-2" />
+            <Icon name="search" size={18} className="mr-2" />
             Auto-Detect
           </button>
-
-          <button
-            onClick={handleSendTestMessage}
-            className="btn btn-info"
-            disabled={!connectionStatus.connected}
-            title="Send test MQTT messages for auto-detection"
-          >
-            <Icon name="zap" size={20} className="mr-2" />
-            Test MQTT
-          </button>
-
-
         </div>
       </div>
 
-      {/* Connected Devices Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
+      {/* Stats Overview */}
+      <div className="grid mobile-grid-4 gap-3 sm:gap-4">
+        <div className="card p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-primary-100 dark:bg-primary-900 rounded-lg">
+              <Icon name="home" size={20} className="text-primary-600 dark:text-primary-400" />
+            </div>
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Devices</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalDevices}</p>
-            </div>
-            <div className="p-3 bg-primary-100 dark:bg-primary-900 rounded-lg">
-              <Icon name="home" size={24} className="text-primary-600 dark:text-primary-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online</p>
-              <p className="text-2xl font-bold text-success-600 dark:text-success-400">{onlineDevices}</p>
-            </div>
-            <div className="p-3 bg-success-100 dark:bg-success-900 rounded-lg">
-              <Icon name="wifi" size={24} className="text-success-600 dark:text-success-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Offline</p>
-              <p className="text-2xl font-bold text-danger-600 dark:text-danger-400">{offlineDevices}</p>
-            </div>
-            <div className="p-3 bg-danger-100 dark:bg-danger-900 rounded-lg">
-              <Icon name="wifi-off" size={24} className="text-danger-600 dark:text-danger-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Connection</p>
-              <p className={`text-2xl font-bold ${connectionStatus.connected ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'}`}>
-                {connectionStatus.connected ? 'Active' : 'Inactive'}
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Devices</p>
+              <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                {totalDevices}
               </p>
             </div>
-            <div className={`p-3 rounded-lg ${connectionStatus.connected ? 'bg-success-100 dark:bg-success-900' : 'bg-danger-100 dark:bg-danger-900'}`}>
-              <Icon 
-                name={connectionStatus.connected ? "check-circle" : "x-circle"} 
-                size={24} 
-                className={connectionStatus.connected ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'} 
-              />
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-success-100 dark:bg-success-900 rounded-lg">
+              <Icon name="check-circle" size={20} className="text-success-600 dark:text-success-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Online</p>
+              <p className="text-xl font-semibold text-success-600 dark:text-success-400">
+                {onlineDevices}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-danger-100 dark:bg-danger-900 rounded-lg">
+              <Icon name="alert-circle" size={20} className="text-danger-600 dark:text-danger-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Offline</p>
+              <p className="text-xl font-semibold text-danger-600 dark:text-danger-400">
+                {offlineDevices}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <Icon name="filter" size={20} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Filtered</p>
+              <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                {deviceList.length}
+              </p>
             </div>
           </div>
         </div>
@@ -314,20 +330,20 @@ const Devices = () => {
 
       {/* Device Types Quick Selection */}
       {devicesByType.length > 0 && (
-        <div className="card p-6 mb-6">
+        <div className="card p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Device Types
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid mobile-grid-3 gap-3 sm:gap-4">
             <button
               onClick={() => setDeviceFilters({ ...deviceFilters, type: 'all' })}
-              className={`p-4 rounded-lg border-2 transition-colors ${
+              className={`p-3 sm:p-4 rounded-lg border-2 transition-colors ${
                 deviceFilters.type === 'all' 
                   ? 'border-primary-500 bg-primary-50 dark:bg-primary-900' 
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
-              <Icon name="grid-3x3" size={24} className="mx-auto mb-2 text-gray-600 dark:text-gray-400" />
+              <Icon name="grid-3x3" size={20} className="mx-auto mb-2 text-gray-600 dark:text-gray-400" />
               <p className="text-sm font-medium text-gray-900 dark:text-white">All</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{totalDevices} devices</p>
             </button>
@@ -336,7 +352,7 @@ const Devices = () => {
               <button
                 key={type}
                 onClick={() => setDeviceFilters({ ...deviceFilters, type })}
-                className={`p-4 rounded-lg border-2 transition-colors ${
+                className={`p-3 sm:p-4 rounded-lg border-2 transition-colors ${
                   deviceFilters.type === type 
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900' 
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -344,7 +360,7 @@ const Devices = () => {
               >
                 <Icon 
                   name={getDeviceTypeIcon(type)} 
-                  size={24} 
+                  size={20} 
                   className="mx-auto mb-2 text-gray-600 dark:text-gray-400" 
                 />
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -360,9 +376,9 @@ const Devices = () => {
       )}
 
       {/* Filters and Controls */}
-      <div className="card p-6 mb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4">
-          <div className="flex items-center space-x-4 mb-4 lg:mb-0">
+      <div className="card p-4 sm:p-6">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 mb-6">
+          <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Connected Devices ({deviceList.length})
             </h3>
@@ -373,7 +389,7 @@ const Devices = () => {
                 </span>
                 <button
                   onClick={() => handleBulkAction('remove')}
-                  className="text-sm text-danger-600 hover:text-danger-700 dark:text-danger-400"
+                  className="text-sm text-danger-600 hover:text-danger-700 dark:text-danger-400 touch-manipulation"
                 >
                   Remove Selected
                 </button>
@@ -381,24 +397,33 @@ const Devices = () => {
             )}
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between sm:justify-end space-x-3">
             <button
               onClick={handleSelectAll}
-              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400"
+              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 touch-manipulation"
             >
               {selectedDevices.size === deviceList.length ? 'Deselect All' : 'Select All'}
             </button>
             
-            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg">
+            {/* View Mode Toggle - Show on mobile too */}
+            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}
+                className={`p-2 rounded-md transition-colors touch-manipulation ${
+                  viewMode === 'grid' 
+                    ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm' 
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
               >
                 <Icon name="grid-3x3" size={16} />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}
+                className={`p-2 rounded-md transition-colors touch-manipulation ${
+                  viewMode === 'list' 
+                    ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm' 
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
               >
                 <Icon name="list" size={16} />
               </button>
@@ -406,13 +431,13 @@ const Devices = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid mobile-grid-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Search
             </label>
             <div className="relative">
-              <Icon name="search" size={16} className="absolute left-3 top-3 text-gray-400" />
+              <Icon name="search" size={16} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search devices..."
@@ -458,31 +483,19 @@ const Devices = () => {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Controllable
+              Type
             </label>
             <select
               className="select"
-              value={deviceFilters.controllable || 'all'}
-              onChange={(e) => setDeviceFilters({ ...deviceFilters, controllable: e.target.value === 'all' ? '' : e.target.value })}
+              value={deviceFilters.type || 'all'}
+              onChange={(e) => setDeviceFilters({ ...deviceFilters, type: e.target.value === 'all' ? '' : e.target.value })}
             >
-              <option value="all">All Devices</option>
-              <option value="true">Controllable</option>
-              <option value="false">Read-only</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Status
-            </label>
-            <select
-              className="select"
-              value={deviceFilters.enabled || 'all'}
-              onChange={(e) => setDeviceFilters({ ...deviceFilters, enabled: e.target.value === 'all' ? 'all' : e.target.value })}
-            >
-              <option value="all">All Devices</option>
-              <option value="true">Enabled</option>
-              <option value="false">Disabled</option>
+              <option value="all">All Types</option>
+              {deviceTypes.map(type => (
+                <option key={type} value={type}>
+                  {getDeviceTypeName(type)}
+                </option>
+              ))}
             </select>
           </div>
         </div>

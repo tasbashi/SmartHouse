@@ -65,10 +65,10 @@ const DeviceWidget = ({ device }) => {
 
     return (
       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className="space-y-2">
+        <div className="space-y-3">
           {Object.entries(device.config.controls).map(([key, control]) => (
-            <div key={key} className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
+            <div key={key} className="flex items-center justify-between space-x-2">
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate flex-1">
                 {key}
               </span>
               
@@ -82,7 +82,7 @@ const DeviceWidget = ({ device }) => {
                     handleControl(key, newValue);
                   }}
                   className={`
-                    px-2 py-1 rounded text-xs font-medium transition-colors flex-shrink-0
+                    px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 touch-manipulation min-h-8
                     ${getStatusColor(key, device.data[key]) === 'success' 
                       ? 'bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200' 
                       : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
@@ -101,7 +101,7 @@ const DeviceWidget = ({ device }) => {
                   step={control.step || 1}
                   value={device.data[key] || control.min}
                   onChange={(e) => handleControl(key, parseFloat(e.target.value))}
-                  className="w-16 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 flex-shrink-0"
+                  className="w-16 sm:w-20 h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 flex-shrink-0 touch-manipulation"
                 />
               )}
               
@@ -109,7 +109,7 @@ const DeviceWidget = ({ device }) => {
                 <select
                   value={device.data[key] || control.options[0]}
                   onChange={(e) => handleControl(key, e.target.value)}
-                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white flex-shrink-0"
+                  className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white flex-shrink-0 touch-manipulation min-h-8"
                 >
                   {control.options.map(option => (
                     <option key={option} value={option}>{option}</option>
@@ -151,7 +151,7 @@ const DeviceWidget = ({ device }) => {
       <div className="flex items-start justify-between mb-3 flex-shrink-0">
         <div className="flex items-center space-x-2 min-w-0 flex-1">
           <div className={`
-            p-2 rounded-lg flex-shrink-0
+            p-1.5 sm:p-2 rounded-lg flex-shrink-0
             ${device.isOnline 
               ? 'bg-success-100 dark:bg-success-900' 
               : 'bg-gray-100 dark:bg-gray-700'
@@ -159,7 +159,7 @@ const DeviceWidget = ({ device }) => {
           `}>
             <Icon 
               name={device.icon} 
-              size={20} 
+              size={18} 
               className={`
                 ${device.isOnline 
                   ? 'text-success-600 dark:text-success-400' 
@@ -170,7 +170,7 @@ const DeviceWidget = ({ device }) => {
           </div>
           
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-gray-900 dark:text-white text-base leading-tight truncate">
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight truncate">
               {device.name}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -189,9 +189,10 @@ const DeviceWidget = ({ device }) => {
           
           <button
             onClick={() => setShowControls(!showControls)}
-            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
+            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0 touch-manipulation"
+            aria-label="Device settings"
           >
-            <Icon name="settings" size={12} />
+            <Icon name="settings" size={14} />
           </button>
         </div>
       </div>

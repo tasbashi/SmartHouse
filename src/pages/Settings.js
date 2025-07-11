@@ -255,24 +255,24 @@ const Settings = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+    <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
           Settings
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Configure MQTT connection and application preferences
+        <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
+          Configure your smart home dashboard
         </p>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* MQTT Connection */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             MQTT Connection
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid mobile-grid-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Broker Address
@@ -338,59 +338,59 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="space-y-3 mb-6">
-            <label className="flex items-center">
+          <div className="space-y-3 mb-6 form-mobile">
+            <label className="flex items-center touch-manipulation">
               <input
                 type="checkbox"
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mr-3"
                 checked={connectionSettings.useTLS}
                 onChange={(e) => setConnectionSettings({
                   ...connectionSettings,
                   useTLS: e.target.checked
                 })}
               />
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Use TLS/SSL
               </span>
             </label>
 
-            <label className="flex items-center">
+            <label className="flex items-center touch-manipulation">
               <input
                 type="checkbox"
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mr-3"
                 checked={connectionSettings.cleanSession}
                 onChange={(e) => setConnectionSettings({
                   ...connectionSettings,
                   cleanSession: e.target.checked
                 })}
               />
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Clean Session
               </span>
             </label>
 
-            <label className="flex items-center">
+            <label className="flex items-center touch-manipulation">
               <input
                 type="checkbox"
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mr-3"
                 checked={connectionSettings.useAwsCerts}
                 onChange={(e) => setConnectionSettings({
                   ...connectionSettings,
                   useAwsCerts: e.target.checked
                 })}
               />
-              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Use AWS IoT Certificates
               </span>
             </label>
           </div>
 
-          <div className="flex space-x-3 mb-4">
+          <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 mb-4">
             {!connectionStatus.connected ? (
               <button
                 onClick={handleConnect}
                 disabled={isConnecting}
-                className="btn btn-primary"
+                className="btn btn-primary w-full sm:w-auto"
               >
                 {isConnecting ? (
                   <>
@@ -408,7 +408,7 @@ const Settings = () => {
               <button
                 onClick={handleDisconnect}
                 disabled={isConnecting}
-                className="btn btn-danger"
+                className="btn btn-danger w-full sm:w-auto"
               >
                 <Icon name="wifi-off" size={16} className="mr-2" />
                 Disconnect
@@ -417,7 +417,7 @@ const Settings = () => {
 
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="btn btn-secondary"
+              className="btn btn-secondary w-full sm:w-auto"
             >
               <Icon name="settings" size={16} className="mr-2" />
               Advanced
@@ -462,8 +462,8 @@ const Settings = () => {
         </div>
 
         {/* Certificate Management */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             <Icon name="shield" size={20} className="mr-2 inline" />
             Certificate Management
           </h2>
@@ -472,78 +472,78 @@ const Settings = () => {
             <>
               {/* Standard Certificate Upload */}
               <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-4">
                   Standard TLS Certificate
                 </h3>
                 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Upload Certificate (.crt, .cer, .pem, .key)
-                  </label>
-                  <input
-                    type="file"
-                    accept=".crt,.cer,.pem,.key"
-                    onChange={handleCertificateUpload}
-                    disabled={isUploadingCert}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900 dark:file:text-primary-200"
-                  />
-                  {isUploadingCert && (
-                    <div className="mt-2 text-sm text-primary-600 dark:text-primary-400">
-                      <Icon name="refresh" size={14} className="mr-1 inline spinner" />
-                      Uploading...
+                <div className="mb-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Upload Certificate (.crt, .cer, .pem, .key)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".crt,.cer,.pem,.key"
+                      onChange={handleCertificateUpload}
+                      disabled={isUploadingCert}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900 dark:file:text-primary-200 file:touch-manipulation"
+                    />
+                    {isUploadingCert && (
+                      <div className="mt-2 text-sm text-primary-600 dark:text-primary-400">
+                        <Icon name="refresh" size={14} className="mr-1 inline spinner" />
+                        Uploading...
+                      </div>
+                    )}
+                  </div>
+
+                  {uploadMessage && (
+                    <div className={`p-3 rounded-lg ${
+                      uploadMessage.includes('success')
+                        ? 'bg-success-50 text-success-800 dark:bg-success-900/20 dark:text-success-200'
+                        : 'bg-danger-50 text-danger-800 dark:bg-danger-900/20 dark:text-danger-200'
+                    }`}>
+                      {uploadMessage}
+                    </div>
+                  )}
+
+                  {/* Certificate Selection */}
+                  {certificates.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Select Certificate for Connection
+                      </label>
+                      <select
+                        value={selectedCertificate}
+                        onChange={(e) => setSelectedCertificate(e.target.value)}
+                        className="input"
+                      >
+                        <option value="">Select a certificate (optional)</option>
+                        {certificates.map((cert, index) => (
+                          <option key={index} value={cert}>
+                            {cert}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>
 
-                {uploadMessage && (
-                  <div className={`p-3 rounded-lg mb-4 ${
-                    uploadMessage.includes('success')
-                      ? 'bg-success-50 text-success-800 dark:bg-success-900/20 dark:text-success-200'
-                      : 'bg-danger-50 text-danger-800 dark:bg-danger-900/20 dark:text-danger-200'
-                  }`}>
-                    {uploadMessage}
-                  </div>
-                )}
-
-                {/* Certificate Selection */}
-                {certificates.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Select Certificate for Connection
-                    </label>
-                    <select
-                      value={selectedCertificate}
-                      onChange={(e) => setSelectedCertificate(e.target.value)}
-                      className="input"
-                    >
-                      <option value="">Select a certificate (optional)</option>
-                      {certificates.map((cert, index) => (
-                        <option key={index} value={cert}>
-                          {cert}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
                 {/* Certificate List */}
-                {certificates.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {certificates.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Uploaded Certificates:
                     </h4>
                     <div className="space-y-2">
                       {certificates.map((cert, index) => (
-                        <div key={index} className="flex items-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <Icon name="shield" size={16} className="mr-2 text-primary-600 dark:text-primary-400" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">{cert}</span>
+                        <div key={index} className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <Icon name="shield" size={16} className="mr-3 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300 break-all">{cert}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
-
-                {certificates.length === 0 && (
+                ) : (
                   <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
                     <Icon name="shield" size={24} className="mx-auto mb-2 text-gray-400" />
                     <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -557,19 +557,19 @@ const Settings = () => {
             <>
               {/* AWS Certificate Upload */}
               <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-4">
                   <Icon name="cloud" size={18} className="mr-2 inline text-orange-500" />
                   AWS IoT Certificates
                 </h3>
                 
-                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg mb-4">
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg mb-6">
                   <p className="text-sm text-orange-800 dark:text-orange-200">
                     AWS IoT requires three certificate files: CA Certificate, Client Certificate, and Private Key.
                     Upload all three files to establish a secure connection.
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {/* CA Certificate */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -580,10 +580,10 @@ const Settings = () => {
                       type="file"
                       accept=".pem,.crt"
                       onChange={(e) => handleAwsCertificateUpload(e, 'ca')}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200 file:touch-manipulation"
                     />
                     {awsUploadStatus.ca && (
-                      <div className={`mt-1 text-xs ${
+                      <div className={`mt-2 text-xs ${
                         awsUploadStatus.ca.includes('✓') 
                           ? 'text-success-600 dark:text-success-400' 
                           : awsUploadStatus.ca.includes('✗')
@@ -605,10 +605,10 @@ const Settings = () => {
                       type="file"
                       accept=".pem,.crt"
                       onChange={(e) => handleAwsCertificateUpload(e, 'client')}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200 file:touch-manipulation"
                     />
                     {awsUploadStatus.client && (
-                      <div className={`mt-1 text-xs ${
+                      <div className={`mt-2 text-xs ${
                         awsUploadStatus.client.includes('✓') 
                           ? 'text-success-600 dark:text-success-400' 
                           : awsUploadStatus.client.includes('✗')
@@ -630,10 +630,10 @@ const Settings = () => {
                       type="file"
                       accept=".pem,.key"
                       onChange={(e) => handleAwsCertificateUpload(e, 'key')}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200 file:touch-manipulation"
                     />
                     {awsUploadStatus.key && (
-                      <div className={`mt-1 text-xs ${
+                      <div className={`mt-2 text-xs ${
                         awsUploadStatus.key.includes('✓') 
                           ? 'text-success-600 dark:text-success-400' 
                           : awsUploadStatus.key.includes('✗')
@@ -647,28 +647,28 @@ const Settings = () => {
                 </div>
 
                 {/* AWS Status Summary */}
-                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Upload Status:
                   </h4>
-                  <div className="space-y-1 text-xs">
+                  <div className="space-y-2 text-xs">
                     <div className={`flex items-center ${awsCertificates.ca ? 'text-success-600' : 'text-gray-500'}`}>
-                      <Icon name={awsCertificates.ca ? "check" : "x"} size={12} className="mr-1" />
-                      CA Certificate {awsCertificates.ca ? '(Ready)' : '(Missing)'}
+                      <Icon name={awsCertificates.ca ? "check" : "x"} size={12} className="mr-2 flex-shrink-0" />
+                      <span>CA Certificate {awsCertificates.ca ? '(Ready)' : '(Missing)'}</span>
                     </div>
                     <div className={`flex items-center ${awsCertificates.client ? 'text-success-600' : 'text-gray-500'}`}>
-                      <Icon name={awsCertificates.client ? "check" : "x"} size={12} className="mr-1" />
-                      Client Certificate {awsCertificates.client ? '(Ready)' : '(Missing)'}
+                      <Icon name={awsCertificates.client ? "check" : "x"} size={12} className="mr-2 flex-shrink-0" />
+                      <span>Client Certificate {awsCertificates.client ? '(Ready)' : '(Missing)'}</span>
                     </div>
                     <div className={`flex items-center ${awsCertificates.key ? 'text-success-600' : 'text-gray-500'}`}>
-                      <Icon name={awsCertificates.key ? "check" : "x"} size={12} className="mr-1" />
-                      Private Key {awsCertificates.key ? '(Ready)' : '(Missing)'}
+                      <Icon name={awsCertificates.key ? "check" : "x"} size={12} className="mr-2 flex-shrink-0" />
+                      <span>Private Key {awsCertificates.key ? '(Ready)' : '(Missing)'}</span>
                     </div>
                   </div>
                   
                   {awsCertificates.ca && awsCertificates.client && awsCertificates.key && (
-                    <div className="mt-2 p-2 bg-success-50 dark:bg-success-900/20 rounded text-success-800 dark:text-success-200 text-xs">
-                      <Icon name="check-circle" size={12} className="mr-1 inline" />
+                    <div className="mt-3 p-3 bg-success-50 dark:bg-success-900/20 rounded text-success-800 dark:text-success-200 text-xs">
+                      <Icon name="check-circle" size={12} className="mr-2 inline" />
                       All AWS certificates uploaded! Ready for secure connection.
                     </div>
                   )}
@@ -679,8 +679,8 @@ const Settings = () => {
         </div>
 
         {/* Appearance */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             Appearance
           </h2>
           
@@ -697,9 +697,10 @@ const Settings = () => {
               
               <button
                 onClick={toggleTheme}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors touch-manipulation ${
                   isDark ? 'bg-primary-600' : 'bg-gray-200'
                 }`}
+                aria-label="Toggle dark mode"
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -712,13 +713,13 @@ const Settings = () => {
         </div>
 
         {/* Data Management */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             Data Management
           </h2>
           
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
               <div>
                 <h3 className="font-medium text-gray-900 dark:text-white">
                   Clear All Data
@@ -730,7 +731,7 @@ const Settings = () => {
               
               <button
                 onClick={clearData}
-                className="btn btn-danger"
+                className="btn btn-danger w-full sm:w-auto"
               >
                 <Icon name="trash" size={16} className="mr-2" />
                 Clear Data
@@ -740,12 +741,12 @@ const Settings = () => {
         </div>
 
         {/* System Information */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             System Information
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="grid mobile-grid-2 gap-4 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500 dark:text-gray-400">Version:</span>
               <span className="text-gray-900 dark:text-white">1.0.0</span>

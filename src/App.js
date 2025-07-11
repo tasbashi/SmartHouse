@@ -22,6 +22,9 @@ function App() {
     }
   }, []);
 
+  // Close sidebar when clicking outside on mobile
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <ThemeProvider>
       <MqttProvider>
@@ -30,23 +33,26 @@ function App() {
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
               <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
               
-              <div className="flex">
-                <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+              <div className="flex h-[calc(100vh-4rem)]">
+                <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
                 
-                <main className="flex-1 lg:ml-64">
-                  <div className="p-6">
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/devices" element={<Devices />} />
-                      <Route path="/settings" element={<Settings />} />
-                    </Routes>
+                <main className="flex-1 overflow-hidden lg:ml-0">
+                  <div className="h-full overflow-y-auto">
+                    <div className="p-4 sm:p-6 max-w-full">
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/devices" element={<Devices />} />
+                        <Route path="/settings" element={<Settings />} />
+                      </Routes>
+                    </div>
                   </div>
                 </main>
-                              </div>
-                <DebugPanel />
-                <DevicesDebug />
               </div>
+              
+              <DebugPanel />
+              <DevicesDebug />
+            </div>
           </Router>
         </DeviceProvider>
       </MqttProvider>
