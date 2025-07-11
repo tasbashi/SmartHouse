@@ -21,6 +21,24 @@ const Settings = () => {
   const [connectionMessage, setConnectionMessage] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Certificate management state
+  const [certificates, setCertificates] = useState([]);
+  const [selectedCertificate, setSelectedCertificate] = useState('');
+  const [isUploadingCert, setIsUploadingCert] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  
+  // AWS certificates state
+  const [awsCertificates, setAwsCertificates] = useState({
+    ca: null,
+    client: null,
+    key: null
+  });
+  const [awsUploadStatus, setAwsUploadStatus] = useState({
+    ca: '',
+    client: '',
+    key: ''
+  });
+
   useEffect(() => {
     // Load saved connection settings
     const saved = localStorage.getItem('mqtt-connection-settings');
@@ -34,6 +52,89 @@ const Settings = () => {
     }
   }, []);
 
+  // Load certificates on component mount
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  // Load certificates from server
+  const loadCertificates = async () => {
+    try {
+      const response = await fetch('/api/certificates');
+      const result = await response.json();
+      if (response.ok) {
+        setCertificates(result.certificates || []);
+      }
+    } catch (error) {
+      console.error('Error loading certificates:', error);
+    }
+  };
+
+  // Handle certificate file upload
+  const handleCertificateUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploadingCert(true);
+    setUploadMessage('');
+
+    const formData = new FormData();
+    formData.append('certificate', file);
+
+    try {
+      const response = await fetch('/api/upload-certificate', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setUploadMessage('Certificate uploaded successfully!');
+        loadCertificates();
+        event.target.value = ''; // Clear input
+      } else {
+        setUploadMessage(`Upload failed: ${result.error}`);
+      }
+    } catch (error) {
+      setUploadMessage(`Upload error: ${error.message}`);
+    } finally {
+      setIsUploadingCert(false);
+    }
+  };
+
+  // Handle AWS certificate upload
+  const handleAwsCertificateUpload = async (event, certType) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('awsCertificate', file);
+    formData.append('certType', certType);
+
+    setAwsUploadStatus(prev => ({ ...prev, [certType]: 'Uploading...' }));
+
+    try {
+      const response = await fetch('/api/upload-aws-certificate', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setAwsCertificates(prev => ({ ...prev, [certType]: result.filename }));
+        setAwsUploadStatus(prev => ({ ...prev, [certType]: `✓ ${file.name}` }));
+      } else {
+        setAwsUploadStatus(prev => ({ ...prev, [certType]: `✗ ${result.error}` }));
+      }
+    } catch (error) {
+      setAwsUploadStatus(prev => ({ ...prev, [certType]: `✗ Upload error` }));
+    } finally {
+      event.target.value = ''; // Clear input
+    }
+  };
+
   const saveConnectionSettings = (settings) => {
     // Don't save password for security
     const toSave = { ...settings };
@@ -42,18 +143,25 @@ const Settings = () => {
   };
 
   const handleConnect = async () => {
-    if (!connectionSettings.brokerAddress || !connectionSettings.port) {
-      setConnectionMessage('Please enter broker address and port');
-      return;
-    }
-
     setIsConnecting(true);
-    setConnectionMessage('Connecting...');
+    setConnectionMessage('');
 
     try {
-      const result = await connectToMqtt(connectionSettings);
-      
-      if (result.success) {
+      const response = await fetch('/api/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...connectionSettings,
+          certificateFile: selectedCertificate,
+          useAwsCerts: connectionSettings.useAwsCerts
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
         setConnectionMessage('Connected successfully!');
         saveConnectionSettings(connectionSettings);
       } else {
@@ -160,35 +268,19 @@ const Settings = () => {
       <div className="space-y-8">
         {/* MQTT Connection */}
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                MQTT Connection
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Configure connection to your MQTT broker
-              </p>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${
-                connectionStatus.connected ? 'bg-success-500' : 'bg-gray-400'
-              }`} />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {connectionStatus.connected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+            MQTT Connection
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Broker Address *
+                Broker Address
               </label>
               <input
                 type="text"
                 className="input"
-                placeholder="broker.hivemq.com"
+                placeholder="broker.example.com"
                 value={connectionSettings.brokerAddress}
                 onChange={(e) => setConnectionSettings({
                   ...connectionSettings,
@@ -196,10 +288,10 @@ const Settings = () => {
                 })}
               />
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Port *
+                Port
               </label>
               <input
                 type="number"
@@ -212,7 +304,7 @@ const Settings = () => {
                 })}
               />
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Username (Optional)
@@ -228,7 +320,7 @@ const Settings = () => {
                 })}
               />
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Password (Optional)
@@ -246,7 +338,7 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-4 mb-6">
+          <div className="space-y-3 mb-6">
             <label className="flex items-center">
               <input
                 type="checkbox"
@@ -366,6 +458,223 @@ const Settings = () => {
                 ))}
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Certificate Management */}
+        <div className="card p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+            <Icon name="shield" size={20} className="mr-2 inline" />
+            Certificate Management
+          </h2>
+          
+          {!connectionSettings.useAwsCerts ? (
+            <>
+              {/* Standard Certificate Upload */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Standard TLS Certificate
+                </h3>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Upload Certificate (.crt, .cer, .pem, .key)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".crt,.cer,.pem,.key"
+                    onChange={handleCertificateUpload}
+                    disabled={isUploadingCert}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900 dark:file:text-primary-200"
+                  />
+                  {isUploadingCert && (
+                    <div className="mt-2 text-sm text-primary-600 dark:text-primary-400">
+                      <Icon name="refresh" size={14} className="mr-1 inline spinner" />
+                      Uploading...
+                    </div>
+                  )}
+                </div>
+
+                {uploadMessage && (
+                  <div className={`p-3 rounded-lg mb-4 ${
+                    uploadMessage.includes('success')
+                      ? 'bg-success-50 text-success-800 dark:bg-success-900/20 dark:text-success-200'
+                      : 'bg-danger-50 text-danger-800 dark:bg-danger-900/20 dark:text-danger-200'
+                  }`}>
+                    {uploadMessage}
+                  </div>
+                )}
+
+                {/* Certificate Selection */}
+                {certificates.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select Certificate for Connection
+                    </label>
+                    <select
+                      value={selectedCertificate}
+                      onChange={(e) => setSelectedCertificate(e.target.value)}
+                      className="input"
+                    >
+                      <option value="">Select a certificate (optional)</option>
+                      {certificates.map((cert, index) => (
+                        <option key={index} value={cert}>
+                          {cert}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Certificate List */}
+                {certificates.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Uploaded Certificates:
+                    </h4>
+                    <div className="space-y-2">
+                      {certificates.map((cert, index) => (
+                        <div key={index} className="flex items-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <Icon name="shield" size={16} className="mr-2 text-primary-600 dark:text-primary-400" />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">{cert}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {certificates.length === 0 && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+                    <Icon name="shield" size={24} className="mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No certificates uploaded yet
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* AWS Certificate Upload */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <Icon name="cloud" size={18} className="mr-2 inline text-orange-500" />
+                  AWS IoT Certificates
+                </h3>
+                
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg mb-4">
+                  <p className="text-sm text-orange-800 dark:text-orange-200">
+                    AWS IoT requires three certificate files: CA Certificate, Client Certificate, and Private Key.
+                    Upload all three files to establish a secure connection.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* CA Certificate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Icon name="shield" size={16} className="mr-1 inline" />
+                      CA Certificate (ca-cert.pem)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pem,.crt"
+                      onChange={(e) => handleAwsCertificateUpload(e, 'ca')}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200"
+                    />
+                    {awsUploadStatus.ca && (
+                      <div className={`mt-1 text-xs ${
+                        awsUploadStatus.ca.includes('✓') 
+                          ? 'text-success-600 dark:text-success-400' 
+                          : awsUploadStatus.ca.includes('✗')
+                          ? 'text-danger-600 dark:text-danger-400'
+                          : 'text-primary-600 dark:text-primary-400'
+                      }`}>
+                        {awsUploadStatus.ca}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Client Certificate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Icon name="user" size={16} className="mr-1 inline" />
+                      Client Certificate (client-cert.pem)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pem,.crt"
+                      onChange={(e) => handleAwsCertificateUpload(e, 'client')}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200"
+                    />
+                    {awsUploadStatus.client && (
+                      <div className={`mt-1 text-xs ${
+                        awsUploadStatus.client.includes('✓') 
+                          ? 'text-success-600 dark:text-success-400' 
+                          : awsUploadStatus.client.includes('✗')
+                          ? 'text-danger-600 dark:text-danger-400'
+                          : 'text-primary-600 dark:text-primary-400'
+                      }`}>
+                        {awsUploadStatus.client}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Private Key */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Icon name="key" size={16} className="mr-1 inline" />
+                      Private Key (client-key.pem)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pem,.key"
+                      onChange={(e) => handleAwsCertificateUpload(e, 'key')}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-900 dark:file:text-orange-200"
+                    />
+                    {awsUploadStatus.key && (
+                      <div className={`mt-1 text-xs ${
+                        awsUploadStatus.key.includes('✓') 
+                          ? 'text-success-600 dark:text-success-400' 
+                          : awsUploadStatus.key.includes('✗')
+                          ? 'text-danger-600 dark:text-danger-400'
+                          : 'text-primary-600 dark:text-primary-400'
+                      }`}>
+                        {awsUploadStatus.key}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* AWS Status Summary */}
+                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Upload Status:
+                  </h4>
+                  <div className="space-y-1 text-xs">
+                    <div className={`flex items-center ${awsCertificates.ca ? 'text-success-600' : 'text-gray-500'}`}>
+                      <Icon name={awsCertificates.ca ? "check" : "x"} size={12} className="mr-1" />
+                      CA Certificate {awsCertificates.ca ? '(Ready)' : '(Missing)'}
+                    </div>
+                    <div className={`flex items-center ${awsCertificates.client ? 'text-success-600' : 'text-gray-500'}`}>
+                      <Icon name={awsCertificates.client ? "check" : "x"} size={12} className="mr-1" />
+                      Client Certificate {awsCertificates.client ? '(Ready)' : '(Missing)'}
+                    </div>
+                    <div className={`flex items-center ${awsCertificates.key ? 'text-success-600' : 'text-gray-500'}`}>
+                      <Icon name={awsCertificates.key ? "check" : "x"} size={12} className="mr-1" />
+                      Private Key {awsCertificates.key ? '(Ready)' : '(Missing)'}
+                    </div>
+                  </div>
+                  
+                  {awsCertificates.ca && awsCertificates.client && awsCertificates.key && (
+                    <div className="mt-2 p-2 bg-success-50 dark:bg-success-900/20 rounded text-success-800 dark:text-success-200 text-xs">
+                      <Icon name="check-circle" size={12} className="mr-1 inline" />
+                      All AWS certificates uploaded! Ready for secure connection.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
 
