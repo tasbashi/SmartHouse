@@ -1,18 +1,44 @@
 const express = require('express');
+const session = require('express-session');
 const mqtt = require('mqtt');
 const multer = require('multer');
 const fs = require('fs-extra');
 const path = require('path');
 const { Server } = require('socket.io');
 const http = require('http');
+const authRoutes = require('./src/routes/auth');
+const database = require('./src/config/database');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
+
+// Authentication routes
+app.use('/api/auth', authRoutes);
+
+// Authentication middleware for protected routes
+const requireAuth = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+};
 
 // Multer configuration for certificate uploads
 const storage = multer.diskStorage({
@@ -143,7 +169,7 @@ io.on('connection', (socket) => {
 });
 
 // Upload certificate endpoint
-app.post('/api/upload-certificate', upload.single('certificate'), (req, res) => {
+app.post('/api/upload-certificate', requireAuth, upload.single('certificate'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Sertifika dosyası seçilmedi' });
@@ -197,7 +223,7 @@ const awsUpload = multer({
 });
 
 // Upload AWS certificate endpoint
-app.post('/api/upload-aws-certificate', awsUpload.single('awsCertificate'), (req, res) => {
+app.post('/api/upload-aws-certificate', requireAuth, awsUpload.single('awsCertificate'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'AWS sertifika dosyası seçilmedi' });
@@ -221,7 +247,7 @@ app.post('/api/upload-aws-certificate', awsUpload.single('awsCertificate'), (req
 });
 
 // Get uploaded certificates
-app.get('/api/certificates', async (req, res) => {
+app.get('/api/certificates', requireAuth, async (req, res) => {
   try {
     const uploadDir = 'uploads/certificates';
     await fs.ensureDir(uploadDir);
@@ -233,7 +259,7 @@ app.get('/api/certificates', async (req, res) => {
 });
 
 // Connect to MQTT broker
-app.post('/api/connect', async (req, res) => {
+app.post('/api/connect', requireAuth, async (req, res) => {
   try {
     const { brokerAddress, port, useTLS, certificateFile, username, password, cleanSession, useAwsCerts } = req.body;
     
@@ -361,7 +387,7 @@ app.post('/api/connect', async (req, res) => {
 });
 
 // Disconnect from MQTT broker
-app.post('/api/disconnect', (req, res) => {
+app.post('/api/disconnect', requireAuth, (req, res) => {
   try {
     if (mqttClient) {
       mqttClient.end();
@@ -376,7 +402,7 @@ app.post('/api/disconnect', (req, res) => {
 });
 
 // Subscribe to topic
-app.post('/api/subscribe', (req, res) => {
+app.post('/api/subscribe', requireAuth, (req, res) => {
   try {
     const { topic, qos } = req.body;
     
@@ -405,7 +431,7 @@ app.post('/api/subscribe', (req, res) => {
 });
 
 // Publish message
-app.post('/api/publish', (req, res) => {
+app.post('/api/publish', requireAuth, (req, res) => {
   try {
     const { topic, message, qos, retain } = req.body;
     
@@ -438,7 +464,7 @@ app.post('/api/publish', (req, res) => {
 });
 
 // Get connection status
-app.get('/api/status', (req, res) => {
+app.get('/api/status', requireAuth, (req, res) => {
   res.json(connectionStatus);
 });
 

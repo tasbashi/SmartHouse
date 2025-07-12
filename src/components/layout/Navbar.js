@@ -1,11 +1,17 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMqtt } from '../../contexts/MqttContext';
+import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../ui/Icon';
 
 const Navbar = ({ onMenuClick }) => {
   const { isDark, toggleTheme } = useTheme();
   const { connectionStatus, isConnected } = useMqtt();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <nav className="navbar px-4 py-3 sticky top-0 z-50 h-16">
@@ -64,6 +70,25 @@ const Navbar = ({ onMenuClick }) => {
               size={18} 
               className={isConnected ? 'text-success-600' : 'text-danger-600'} 
             />
+          </div>
+
+          {/* User info and logout */}
+          <div className="flex items-center space-x-2">
+            <span className="hidden sm:inline text-sm text-gray-600 dark:text-gray-400">
+              Welcome, {user?.username}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+              title="Logout"
+              aria-label="Logout"
+            >
+              <Icon 
+                name="log-out" 
+                size={18} 
+                className="text-gray-600 dark:text-gray-400" 
+              />
+            </button>
           </div>
 
           {/* Theme Toggle */}

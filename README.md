@@ -1,18 +1,27 @@
 # Smart Home MQTT Dashboard
 
-A modern, responsive web-based smart home control panel built with React and Node.js, featuring real-time MQTT communication for comprehensive IoT device management.
+A modern, responsive web-based smart home control panel built with React and Node.js, featuring real-time MQTT communication, user authentication, and personalized dashboards for comprehensive IoT device management.
 
-![Smart Home Dashboard](https://img.shields.io/badge/Status-Production%20Ready-green) ![License](https://img.shields.io/badge/License-MIT-blue) ![React](https://img.shields.io/badge/React-18.2.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-16+-green) ![MQTT](https://img.shields.io/badge/MQTT-5.0-orange)
+![Smart Home Dashboard](https://img.shields.io/badge/Status-Production%20Ready-green) ![License](https://img.shields.io/badge/License-MIT-blue) ![React](https://img.shields.io/badge/React-18.2.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-16+-green) ![MQTT](https://img.shields.io/badge/MQTT-5.0-orange) ![Authentication](https://img.shields.io/badge/Authentication-Secure-red)
 
 ## ✨ Features
 
+### 🔐 User Authentication & Management
+- **Secure user registration** with email validation and password hashing
+- **Session-based authentication** with secure HTTP-only cookies
+- **Personalized dashboards** - each user gets their own isolated configuration
+- **User-specific settings** with persistent storage per account
+- **Secure logout** with complete session cleanup
+- **Password security** with bcrypt hashing and salt rounds
+
 ### 🏠 Smart Dashboard
 - **Real-time device monitoring** with interactive widgets
-- **Drag-and-drop layout** customization with persistent storage
+- **Drag-and-drop layout** customization with persistent storage per user
 - **Responsive grid system** that adapts to all screen sizes
 - **Live statistics** showing device counts, temperature averages, and system alerts
 - **Dark/Light theme** with automatic detection and manual toggle
 - **Customizable widgets** with resizable and repositionable cards
+- **User-isolated configurations** - each user's dashboard is completely separate
 
 ### 🔧 Advanced Device Management
 - **Automatic device detection** based on MQTT topic patterns
@@ -21,6 +30,7 @@ A modern, responsive web-based smart home control panel built with React and Nod
 - **Device filtering** by type, status, room, and custom criteria
 - **Live status updates** with last-seen timestamps and battery monitoring
 - **Device simulation** for testing and development
+- **Per-user device access** with secure authentication
 
 ### 🧪 Testing & Development Tools
 - **MQTT message testing** with custom topics and JSON payloads
@@ -29,6 +39,7 @@ A modern, responsive web-based smart home control panel built with React and Nod
 - **Auto-simulation mode** for continuous testing scenarios
 - **Quick message templates** for all supported device types
 - **Debug panel** with comprehensive system information
+- **Authenticated access** to all testing tools
 
 ### ⚙️ Professional Configuration
 - **MQTT broker connectivity** with full TLS/SSL support
@@ -37,6 +48,7 @@ A modern, responsive web-based smart home control panel built with React and Nod
 - **Certificate management** with upload and validation
 - **Data export/import** for backup and migration
 - **Environment-specific settings** with secure credential handling
+- **User-specific configurations** saved per account
 
 ## 🏗️ Architecture Overview
 
@@ -48,14 +60,24 @@ A modern, responsive web-based smart home control panel built with React and Nod
 - **Lucide React** for consistent, beautiful iconography
 - **Socket.IO Client** for real-time bidirectional communication
 - **Recharts** for data visualization and analytics
+- **Context API** for global state management and authentication
 
 ### Backend Infrastructure
 - **Express.js** server with RESTful API architecture
 - **Socket.IO** for real-time WebSocket communication
 - **MQTT.js** with full MQTT 5.0 protocol support
+- **SQLite Database** for user management and settings storage
+- **Express Session** for secure session management
+- **bcrypt** for password hashing and security
 - **Multer** for secure file upload handling
 - **fs-extra** for enhanced file system operations
 - **TLS/SSL** support for secure connections
+
+### Database Schema
+- **Users Table**: Secure user credentials with hashed passwords
+- **User Settings Table**: Personalized application settings per user
+- **Dashboard Config Table**: Individual dashboard layouts and configurations
+- **Foreign Key Constraints**: Ensures data integrity and user isolation
 
 ### Supported IoT Device Types
 | Device Type | Icon | Features | Controllable |
@@ -104,6 +126,12 @@ A modern, responsive web-based smart home control panel built with React and Nod
 5. **Access Dashboard**
    Open your browser to `http://localhost:3000`
 
+6. **Create Your Account**
+   - Click "Sign up" to create a new user account
+   - Fill in username, email, and password (minimum 6 characters)
+   - After successful registration, sign in with your credentials
+   - Access your personalized dashboard
+
 ### Development Setup
 
 For development with hot reloading:
@@ -115,6 +143,36 @@ npm run dev
 # Terminal 2: Start webpack with watch mode
 npm run watch
 ```
+
+## 🔐 Authentication System
+
+### User Registration
+- **Secure signup** with username, email, and password
+- **Input validation** with client-side and server-side checks
+- **Password requirements** (minimum 6 characters)
+- **Unique constraints** on username and email
+- **Automatic redirect** to login after successful registration
+
+### User Login
+- **Session-based authentication** with secure cookies
+- **Credential validation** against hashed passwords
+- **Automatic dashboard access** after successful login
+- **Session persistence** across browser sessions
+- **Secure logout** with complete session cleanup
+
+### Security Features
+- **Password hashing** with bcrypt and salt rounds
+- **Session management** with HTTP-only cookies
+- **Protected API endpoints** requiring authentication
+- **User isolation** - complete separation of user data
+- **Input sanitization** and validation on all endpoints
+
+### Database Security
+- **SQLite database** with proper schema design
+- **Foreign key constraints** for data integrity
+- **Prepared statements** to prevent SQL injection
+- **User data isolation** with proper access controls
+- **Automatic database creation** on first run
 
 ## 📋 Configuration Guide
 
@@ -174,18 +232,22 @@ The system uses `src/config/devices.json` for device definitions:
 - **Certificate-based authentication** for AWS IoT Core
 - **Secure WebSocket** connections for real-time updates
 - **Input validation** and sanitization on all endpoints
+- **Session-based authentication** with secure cookies
 
 ### Data Protection
 - **Local storage only** - no cloud data transmission
-- **No password persistence** in browser storage
+- **Encrypted password storage** with bcrypt hashing
+- **User data isolation** - complete separation between users
 - **Certificate encryption** for uploaded files
 - **Session-based authentication** for WebSocket connections
+- **Database integrity** with foreign key constraints
 
 ### Privacy Features
 - **Local device discovery** without external services
 - **Offline-capable** dashboard functionality
 - **No tracking or analytics** by default
 - **Open source** for full transparency
+- **Per-user data isolation** ensuring privacy between accounts
 
 ## 🤝 MQTT Integration Guide
 
@@ -238,7 +300,7 @@ The dashboard provides optimal experience across all devices:
 
 **Theme Support:**
 - **Auto-detection** based on system preferences
-- **Manual toggle** with persistent storage
+- **Manual toggle** with persistent storage per user
 - **Consistent styling** across all components
 - **High contrast** mode support
 
@@ -249,192 +311,115 @@ The dashboard provides optimal experience across all devices:
 smart-home-dashboard/
 ├── src/
 │   ├── components/
-│   │   ├── devices/         # Device widgets and controls
-│   │   ├── layout/          # Navigation and layout components
-│   │   └── ui/              # Reusable UI components
-│   ├── contexts/            # React context providers
-│   │   ├── DeviceContext.js # Device state management
-│   │   ├── MqttContext.js   # MQTT connection handling
-│   │   └── ThemeContext.js  # Theme and UI state
-│   ├── pages/               # Main application pages
-│   │   ├── Dashboard.js     # Main dashboard with widgets
-│   │   ├── Devices.js       # Device management page
-│   │   └── Settings.js      # Configuration interface
-│   ├── config/              # Configuration files
-│   │   ├── devices.json     # Device type definitions
-│   │   ├── message-formats.json # MQTT message templates
-│   │   └── bc.json          # Broker configurations
-│   └── styles/              # Global styles and themes
-├── public/                  # Static assets and built files
-├── uploads/                 # Certificate and file storage
-├── server.js               # Express server and MQTT handling
-└── webpack.config.js       # Build and development configuration
+│   │   ├── auth/           # Authentication components
+│   │   ├── devices/        # Device-specific components
+│   │   ├── layout/         # Layout components
+│   │   └── ui/            # Reusable UI components
+│   ├── contexts/          # React Context providers
+│   ├── config/            # Configuration files
+│   │   ├── database.js    # Database configuration
+│   │   ├── devices.json   # Device definitions
+│   │   └── message-formats.json
+│   ├── routes/            # API routes
+│   │   └── auth.js        # Authentication routes
+│   ├── pages/             # Page components
+│   └── styles/            # CSS styles
+├── public/                # Static assets
+├── uploads/               # File uploads
+├── database.sqlite        # SQLite database (created automatically)
+├── server.js              # Express server
+└── package.json           # Dependencies
 ```
 
-### Available Scripts
-| Command | Description |
-|---------|-------------|
-| `npm start` | Start production server on port 3000 |
-| `npm run dev` | Start development server with auto-restart |
-| `npm run build` | Build React app for production |
-| `npm run build:dev` | Build in development mode |
-| `npm run watch` | Build with file watching for development |
+### Environment Variables
+Create a `.env` file for production:
+```env
+SESSION_SECRET=your-super-secret-session-key
+PORT=3000
+NODE_ENV=production
+```
 
-### Adding New Device Types
+### Database Management
+- **Automatic setup**: Database and tables are created on first run
+- **User management**: Built-in user registration and authentication
+- **Data persistence**: All user settings and configurations are saved
+- **Backup**: SQLite database file can be easily backed up
 
-1. **Define Device Configuration**
-   Update `src/config/devices.json` with new device type:
-   ```json
-   {
-     "new_device": {
-       "topic": "home/room/newdevice",
-       "name": "New Device Type",
-       "icon": "device-icon",
-       "example": { "Status": "Active" },
-       "dataKeys": ["Status"]
-     }
-   }
+## 🚀 Deployment
+
+### Production Deployment
+1. **Set environment variables**:
+   ```bash
+   export SESSION_SECRET="your-secure-secret-key"
+   export NODE_ENV="production"
    ```
 
-2. **Add Icon Support**
-   Ensure the icon exists in `src/components/ui/Icon.js`
+2. **Build and start**:
+   ```bash
+   npm run build
+   npm start
+   ```
 
-3. **Test Message Format**
-   Use the Testing page to send sample messages and verify detection
+3. **SSL Configuration** (recommended):
+   - Use a reverse proxy (nginx, Apache) for SSL termination
+   - Set `cookie.secure: true` in session configuration
+   - Ensure HTTPS for all connections
 
-4. **Update Documentation**
-   Add the new device type to relevant documentation
-
-## 🔧 Troubleshooting
-
-### Connection Issues
-
-**MQTT Connection Failed**
-- ✅ Verify broker address and port are correct
-- ✅ Check firewall settings allow outbound connections
-- ✅ Validate TLS/SSL certificate configuration
-- ✅ Test with public brokers first (e.g., `broker.hivemq.com`)
-
-**WebSocket Connection Failed**
-- ✅ Check browser console for errors
-- ✅ Verify server is running on correct port
-- ✅ Clear browser cache and restart server
-- ✅ Check for conflicting browser extensions
-
-### Device Management Issues
-
-**Devices Not Appearing**
-- ✅ Verify MQTT messages are properly formatted JSON
-- ✅ Check topic structure matches expected patterns
-- ✅ Ensure device is publishing to correct topics
-- ✅ Use Testing page to simulate device messages
-- ✅ Check browser console for JavaScript errors
-
-**Device Controls Not Working**
-- ✅ Verify device is marked as `"controllable": true`
-- ✅ Check control topic uses "_send" suffix
-- ✅ Confirm MQTT broker receives control messages
-- ✅ Validate control message format matches device expectations
-
-**Layout Not Saving**
-- ✅ Check browser local storage permissions
-- ✅ Verify JavaScript is enabled
-- ✅ Clear browser data and reconfigure
-- ✅ Check browser compatibility (modern browsers required)
-
-### Performance Issues
-
-**Slow Dashboard Loading**
-- ✅ Check number of active devices (>50 may impact performance)
-- ✅ Verify MQTT message frequency isn't too high
-- ✅ Clear browser cache and local storage
-- ✅ Consider reducing widget complexity
-
-**High Memory Usage**
-- ✅ Check for memory leaks in browser dev tools
-- ✅ Restart server if long-running
-- ✅ Monitor MQTT message retention settings
-- ✅ Consider pagination for large device lists
-
-### Debug Mode
-
-Enable detailed logging:
-
-```bash
-# Server-side MQTT debugging
-DEBUG=mqtt* npm start
-
-# Enable browser debug mode
-localStorage.setItem('debug', 'true')
+### Docker Deployment
+```dockerfile
+FROM node:16-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
 ```
 
-## 📊 System Requirements
+## 📄 API Documentation
 
-### Minimum Requirements
-- **Node.js**: 16.0 or higher
-- **RAM**: 512MB available
-- **Storage**: 100MB for application and logs
-- **Browser**: Chrome 90+, Firefox 88+, Safari 14+
+### Authentication Endpoints
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/me` - Check authentication status
+- `GET /api/auth/dashboard-config` - Get user's dashboard config
+- `POST /api/auth/dashboard-config` - Save user's dashboard config
 
-### Recommended Specifications
-- **Node.js**: 18.0 or higher
-- **RAM**: 1GB available
-- **Storage**: 500MB for certificates and data
-- **Network**: Stable internet for cloud MQTT brokers
+### MQTT Endpoints (Protected)
+- `POST /api/connect` - Connect to MQTT broker
+- `POST /api/disconnect` - Disconnect from MQTT broker
+- `POST /api/subscribe` - Subscribe to MQTT topic
+- `POST /api/publish` - Publish MQTT message
+- `GET /api/status` - Get connection status
 
-### Supported Platforms
-- **Windows**: 10, 11 (x64)
-- **macOS**: 10.15+ (Intel/Apple Silicon)
-- **Linux**: Ubuntu 18.04+, Debian 10+, CentOS 7+
-- **Docker**: Compatible with containerized deployments
+### File Upload Endpoints (Protected)
+- `POST /api/upload-certificate` - Upload standard certificates
+- `POST /api/upload-aws-certificate` - Upload AWS IoT certificates
+- `GET /api/certificates` - List uploaded certificates
 
-## 📄 License
+## 🤝 Contributing
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for complete details.
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Commit your changes**: `git commit -m 'Add amazing feature'`
+4. **Push to the branch**: `git push origin feature/amazing-feature`
+5. **Open a Pull Request**
 
-## 🎯 Roadmap
+## 📝 License
 
-### Planned Features
-- [ ] **Database integration** for historical data storage
-- [ ] **User authentication** and multi-user support
-- [ ] **Mobile app** with React Native
-- [ ] **Device grouping** and room management
-- [ ] **Automation rules** and scripting engine
-- [ ] **Push notifications** for alerts and events
-
-### Recent Updates
-- ✅ **Control topic separation** with "_send" suffix
-- ✅ **AWS IoT Core** certificate support
-- ✅ **Device simulation** testing suite
-- ✅ **Responsive design** optimization
-- ✅ **Theme system** implementation
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-Built with these excellent open-source projects:
-- **[MQTT.js](https://github.com/mqttjs/MQTT.js)** - Robust MQTT client library
-- **[React Grid Layout](https://github.com/react-grid-layout/react-grid-layout)** - Drag-and-drop grid system
-- **[TailwindCSS](https://tailwindcss.com)** - Utility-first CSS framework
-- **[Lucide React](https://lucide.dev)** - Beautiful icon library
-- **[Socket.IO](https://socket.io)** - Real-time communication
-- **[Recharts](https://recharts.org)** - Data visualization components
-
-## 📞 Support & Contributing
-
-### Getting Help
-1. **Check troubleshooting guide** above for common issues
-2. **Review [Issues](../../issues)** for similar problems
-3. **Create detailed issue** with system information and logs
-4. **Join community discussions** for general questions
-
-### Contributing
-1. **Fork the repository** and create feature branch
-2. **Follow coding standards** and add tests
-3. **Update documentation** for new features
-4. **Submit pull request** with detailed description
+- **React Team** for the amazing framework
+- **MQTT.js** for robust MQTT client implementation
+- **TailwindCSS** for beautiful, responsive styling
+- **Lucide** for the comprehensive icon library
+- **Socket.IO** for real-time communication
+- **Express.js** for the robust backend framework
 
 ---
 
-**🏠 Built with passion for the IoT and Smart Home community**
-
-*Transform your home into a smart, connected environment with real-time monitoring and control.*
+**Built with ❤️ for the IoT community**
