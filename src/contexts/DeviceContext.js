@@ -697,7 +697,7 @@ export const DeviceProvider = ({ children }) => {
 
     console.log('Detected devices:', detectedDevices);
     return detectedDevices;
-  }, [messages, devices]);
+  }, [messages, devices, deletedTopics]);
 
   const getDevicesByType = useCallback((type) => {
     return Object.values(devices).filter(device => device.type === type);

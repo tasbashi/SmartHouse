@@ -8,7 +8,7 @@ import Icon from '../components/ui/Icon';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const Dashboard = () => {
-  const { devices, deviceLayouts, updateLayout, clearAllDevices, cleanupInvalidDevices } = useDevices();
+  const { devices, deviceLayouts, updateLayout, clearAllDevices, cleanupInvalidDevices, autoDetectDevices, addDevice } = useDevices();
   const { connectionStatus } = useMqtt();
   const [isEditing, setIsEditing] = useState(false);
 
@@ -82,6 +82,25 @@ const Dashboard = () => {
 
   const stats = getQuickStats();
 
+  const handleAutoDetect = () => {
+    console.log('Auto-detect button clicked from Dashboard');
+    console.log('Connection status:', connectionStatus);
+    console.log('Current devices count:', Object.keys(devices).length);
+    
+    const detectedDevices = autoDetectDevices();
+    console.log('Auto-detected devices:', detectedDevices);
+    
+    if (detectedDevices.length > 0) {
+      console.log(`Adding ${detectedDevices.length} detected devices...`);
+      detectedDevices.forEach((device, index) => {
+        console.log(`Adding device ${index + 1}:`, device);
+        addDevice(device);
+      });
+    } else {
+      console.log('No devices detected');
+    }
+  };
+
   if (deviceList.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-2 sm:px-0">
@@ -105,7 +124,7 @@ const Dashboard = () => {
             </button>
             <button 
               className="btn btn-secondary w-full sm:w-auto"
-              onClick={() => window.location.href = '/devices'}
+              onClick={handleAutoDetect}
             >
               <Icon name="search" size={20} className="mr-2" />
               Auto-Detect Devices
