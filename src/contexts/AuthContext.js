@@ -98,6 +98,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshDashboardConfig = async () => {
+    console.log('Force refreshing dashboard config...');
+    await loadDashboardConfig();
+  };
+
   const value = {
     user,
     loading,
@@ -105,6 +110,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     saveDashboardConfig,
+    refreshDashboardConfig,
     isAuthenticated: !!user
   };
 

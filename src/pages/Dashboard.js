@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useDevices } from '../contexts/DeviceContext';
 import { useMqtt } from '../contexts/MqttContext';
+import { useAuth } from '../contexts/AuthContext';
 import DeviceWidget from '../components/devices/DeviceWidget';
 import Icon from '../components/ui/Icon';
 
@@ -10,7 +11,9 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const Dashboard = () => {
   const { devices, deviceLayouts, updateLayout, clearAllDevices, cleanupInvalidDevices, autoDetectDevices, addDevice } = useDevices();
   const { connectionStatus } = useMqtt();
+  const { refreshDashboardConfig } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const deviceList = Object.values(devices).filter(device => device.enabled !== false); // Only show enabled devices
   const onlineDevices = deviceList.filter(device => device.isOnline);
@@ -47,6 +50,19 @@ const Dashboard = () => {
       }, 100);
     }
   }, [isEditing, updateLayout]);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      console.log('Manual sync triggered by user');
+      await refreshDashboardConfig();
+      console.log('Manual sync completed');
+    } catch (error) {
+      console.error('Manual sync failed:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const getQuickStats = () => {
     const stats = {
@@ -149,6 +165,20 @@ const Dashboard = () => {
         </div>
         
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="btn btn-secondary w-full sm:w-auto"
+            title="Sync dashboard with other devices"
+          >
+            <Icon 
+              name={isSyncing ? 'loader-2' : 'refresh-cw'} 
+              size={20} 
+              className={`mr-2 ${isSyncing ? 'animate-spin' : ''}`} 
+            />
+            {isSyncing ? 'Syncing...' : 'Sync'}
+          </button>
+          
           <button
             onClick={() => setIsEditing(!isEditing)}
             className={`btn w-full sm:w-auto ${isEditing ? 'btn-primary' : 'btn-secondary'}`}

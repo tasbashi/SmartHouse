@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useMqtt } from './MqttContext';
+import { useAuth } from './AuthContext';
 import deviceConfig from '../config/devices.json';
 
 const DeviceContext = createContext();
@@ -14,6 +15,7 @@ export const useDevices = () => {
 
 export const DeviceProvider = ({ children }) => {
   const { messages, subscribeToTopic, publishMessage, connectionStatus, unsubscribeFromTopic } = useMqtt();
+  const { dashboardConfig, saveDashboardConfig, refreshDashboardConfig, isAuthenticated } = useAuth();
   const [devices, setDevices] = useState({});
   const [deviceLayouts, setDeviceLayouts] = useState([]);
   const [deviceOfflineTimers, setDeviceOfflineTimers] = useState({});
@@ -26,24 +28,218 @@ export const DeviceProvider = ({ children }) => {
     controllable: '',
     enabled: 'all'
   });
+  const [lastSyncTime, setLastSyncTime] = useState(null);
 
-  // Load deleted topics from localStorage on mount
+  // Periodic sync to ensure dashboard config is up to date
   useEffect(() => {
-    const savedDeletedTopics = localStorage.getItem('smart-home-deleted-topics');
-    if (savedDeletedTopics) {
-      try {
-        const topics = JSON.parse(savedDeletedTopics);
-        setDeletedTopics(new Set(topics));
-      } catch (error) {
-        console.error('Error loading deleted topics:', error);
+    if (!isAuthenticated) return;
+
+    const syncInterval = setInterval(async () => {
+      console.log('Performing periodic dashboard config sync...');
+      await refreshDashboardConfig();
+    }, 30000); // Sync every 30 seconds
+
+    return () => clearInterval(syncInterval);
+  }, [isAuthenticated, refreshDashboardConfig]);
+
+  // Load configuration from database when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && dashboardConfig) {
+      console.log('Loading dashboard config from database:', dashboardConfig);
+      
+      // Check if this is a newer config than what we have
+      const configLastUpdated = dashboardConfig.lastUpdated;
+      if (lastSyncTime && configLastUpdated && new Date(configLastUpdated) <= new Date(lastSyncTime)) {
+        console.log('Dashboard config is not newer than current state, skipping update');
+        return;
+      }
+      
+      // Load devices from database config
+      if (dashboardConfig.devices) {
+        setDevices(dashboardConfig.devices);
+        console.log('Loaded devices from database:', dashboardConfig.devices);
+      }
+      
+      // Load device layouts from database config
+      if (dashboardConfig.deviceLayouts) {
+        setDeviceLayouts(dashboardConfig.deviceLayouts);
+        console.log('Loaded device layouts from database:', dashboardConfig.deviceLayouts);
+      }
+      
+      // Load deleted topics from database config
+      if (dashboardConfig.deletedTopics) {
+        setDeletedTopics(new Set(dashboardConfig.deletedTopics));
+        console.log('Loaded deleted topics from database:', dashboardConfig.deletedTopics);
+      }
+      
+      // Load device filters from database config
+      if (dashboardConfig.deviceFilters) {
+        setDeviceFilters(dashboardConfig.deviceFilters);
+        console.log('Loaded device filters from database:', dashboardConfig.deviceFilters);
+      }
+      
+      // Update last sync time
+      setLastSyncTime(new Date().toISOString());
+    } else if (!isAuthenticated) {
+      // Clear data when user logs out
+      setDevices({});
+      setDeviceLayouts([]);
+      setDeletedTopics(new Set());
+      setDeviceFilters({
+        type: 'all',
+        status: 'all',
+        search: '',
+        room: '',
+        controllable: '',
+        enabled: 'all'
+      });
+      setLastSyncTime(null);
+    }
+  }, [isAuthenticated, dashboardConfig, lastSyncTime]);
+
+  // Migration function to move localStorage data to database (one-time)
+  useEffect(() => {
+    if (isAuthenticated && Object.keys(dashboardConfig).length === 0) {
+      console.log('Checking for localStorage data to migrate...');
+      
+      // Check if there's existing localStorage data to migrate
+      const savedDevices = localStorage.getItem('smart-home-devices');
+      const savedLayout = localStorage.getItem('smart-home-layout');
+      const savedDeletedTopics = localStorage.getItem('smart-home-deleted-topics');
+      
+      if (savedDevices || savedLayout || savedDeletedTopics) {
+        console.log('Found localStorage data, migrating to database...');
+        
+        let migratedDevices = {};
+        let migratedLayouts = [];
+        let migratedDeletedTopics = [];
+        
+        // Migrate devices
+        if (savedDevices) {
+          try {
+            const parsedDevices = JSON.parse(savedDevices);
+            if (Object.keys(parsedDevices).length > 0) {
+              // Migrate existing devices to have enabled property
+              Object.entries(parsedDevices).forEach(([deviceId, device]) => {
+                migratedDevices[deviceId] = {
+                  ...device,
+                  enabled: device.enabled !== undefined ? device.enabled : true
+                };
+              });
+              setDevices(migratedDevices);
+              console.log('Migrated devices from localStorage:', migratedDevices);
+            }
+          } catch (error) {
+            console.error('Error migrating devices:', error);
+          }
+        }
+        
+        // Migrate layouts
+        if (savedLayout) {
+          try {
+            const parsedLayout = JSON.parse(savedLayout);
+            if (Array.isArray(parsedLayout) && parsedLayout.length > 0) {
+              migratedLayouts = parsedLayout;
+              setDeviceLayouts(parsedLayout);
+              console.log('Migrated layouts from localStorage:', parsedLayout);
+            }
+          } catch (error) {
+            console.error('Error migrating layouts:', error);
+          }
+        }
+        
+        // Migrate deleted topics
+        if (savedDeletedTopics) {
+          try {
+            const topics = JSON.parse(savedDeletedTopics);
+            migratedDeletedTopics = topics;
+            setDeletedTopics(new Set(topics));
+            console.log('Migrated deleted topics from localStorage:', topics);
+          } catch (error) {
+            console.error('Error migrating deleted topics:', error);
+          }
+        }
+        
+        // Save migrated data to database
+        const migratedConfig = {
+          devices: migratedDevices,
+          deviceLayouts: migratedLayouts,
+          deletedTopics: migratedDeletedTopics,
+          deviceFilters: {
+            type: 'all',
+            status: 'all',
+            search: '',
+            room: '',
+            controllable: '',
+            enabled: 'all'
+          },
+          migrated: true,
+          migratedAt: new Date().toISOString()
+        };
+        
+        console.log('Saving migrated config to database:', migratedConfig);
+        saveDashboardConfig(migratedConfig).then(() => {
+          console.log('Migration completed successfully');
+          // Clear localStorage after successful migration
+          localStorage.removeItem('smart-home-devices');
+          localStorage.removeItem('smart-home-layout');
+          localStorage.removeItem('smart-home-deleted-topics');
+          console.log('Cleared localStorage after migration');
+        }).catch(error => {
+          console.error('Failed to save migrated config:', error);
+        });
       }
     }
-  }, []);
+  }, [isAuthenticated, dashboardConfig, saveDashboardConfig]);
 
-  // Save deleted topics to localStorage when they change
+  // Save configuration to database when data changes
+  const saveConfigToDatabase = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
+    const config = {
+      devices,
+      deviceLayouts,
+      deletedTopics: Array.from(deletedTopics),
+      deviceFilters,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    console.log('Saving dashboard config to database:', config);
+    await saveDashboardConfig(config);
+  }, [isAuthenticated, devices, deviceLayouts, deletedTopics, deviceFilters, saveDashboardConfig]);
+
+  // Save to database when devices change
   useEffect(() => {
-    localStorage.setItem('smart-home-deleted-topics', JSON.stringify(Array.from(deletedTopics)));
-  }, [deletedTopics]);
+    if (isAuthenticated && Object.keys(devices).length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveConfigToDatabase();
+      }, 1000); // Debounce saves
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [devices, isAuthenticated, saveConfigToDatabase]);
+
+  // Save to database when layouts change
+  useEffect(() => {
+    if (isAuthenticated && deviceLayouts.length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveConfigToDatabase();
+      }, 1000); // Debounce saves
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [deviceLayouts, isAuthenticated, saveConfigToDatabase]);
+
+  // Save to database when deleted topics change
+  useEffect(() => {
+    if (isAuthenticated) {
+      const timeoutId = setTimeout(() => {
+        saveConfigToDatabase();
+      }, 1000); // Debounce saves
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [deletedTopics, isAuthenticated, saveConfigToDatabase]);
 
   // Function to clean up null/invalid devices
   const cleanupInvalidDevices = useCallback(() => {
@@ -99,10 +295,6 @@ export const DeviceProvider = ({ children }) => {
     // Update devices state
     setDevices(cleanedDevices);
     
-    // Immediately update localStorage
-    localStorage.setItem('smart-home-devices', JSON.stringify(cleanedDevices));
-    console.log('💾 localStorage updated with cleaned devices');
-    
     // Clean up device layouts for removed devices
     const validDeviceIds = Object.keys(cleanedDevices);
     const cleanedLayouts = deviceLayouts.filter(layout => 
@@ -119,7 +311,6 @@ export const DeviceProvider = ({ children }) => {
       const layoutsRemoved = deviceLayouts.length - cleanedLayouts.length;
       console.log(`🗑️ Cleaned up ${layoutsRemoved} invalid layouts`);
       setDeviceLayouts(cleanedLayouts);
-      localStorage.setItem('smart-home-layout', JSON.stringify(cleanedLayouts));
     }
     
     // Clean up offline timers
@@ -157,72 +348,20 @@ export const DeviceProvider = ({ children }) => {
     setDevices({});
     setDeviceLayouts([]);
     
-    // Clear localStorage
-    localStorage.removeItem('smart-home-devices');
-    localStorage.removeItem('smart-home-layout');
-    localStorage.removeItem('smart-home-deleted-topics');
-    
     // Clear deleted topics
     setDeletedTopics(new Set());
     
+    // Save cleared state to database
+    if (isAuthenticated) {
+      saveConfigToDatabase();
+    }
+    
     console.log('All devices and storage cleared');
-  }, [deviceOfflineTimers]);
+  }, [deviceOfflineTimers, isAuthenticated, saveConfigToDatabase]);
 
   const clearDeletedTopics = useCallback(() => {
     console.log('Clearing deleted topics...');
     setDeletedTopics(new Set());
-    localStorage.removeItem('smart-home-deleted-topics');
-  }, []);
-
-  // Load saved devices and layout from localStorage
-  useEffect(() => {
-    const savedDevices = localStorage.getItem('smart-home-devices');
-    const savedLayout = localStorage.getItem('smart-home-layout');
-
-    if (savedDevices) {
-      try {
-        const parsedDevices = JSON.parse(savedDevices);
-        // Only load if there are actual devices (not empty object)
-        if (Object.keys(parsedDevices).length > 0) {
-          // Migrate existing devices to have enabled property
-          const migratedDevices = {};
-          Object.entries(parsedDevices).forEach(([deviceId, device]) => {
-            migratedDevices[deviceId] = {
-              ...device,
-              enabled: device.enabled !== undefined ? device.enabled : true // Default to enabled for existing devices
-            };
-          });
-          
-          setDevices(migratedDevices);
-          console.log('Loaded devices from localStorage:', migratedDevices);
-          
-          // Clean up invalid devices after loading
-          setTimeout(() => {
-            cleanupInvalidDevices();
-          }, 100);
-        } else {
-          console.log('localStorage contained empty devices object, starting fresh');
-        }
-      } catch (error) {
-        console.error('Error loading saved devices:', error);
-        // Clear corrupted localStorage
-        localStorage.removeItem('smart-home-devices');
-      }
-    } else {
-      console.log('No saved devices found in localStorage');
-    }
-
-    if (savedLayout) {
-      try {
-        const parsedLayout = JSON.parse(savedLayout);
-        if (Array.isArray(parsedLayout) && parsedLayout.length > 0) {
-          setDeviceLayouts(parsedLayout);
-        }
-      } catch (error) {
-        console.error('Error loading saved layout:', error);
-        localStorage.removeItem('smart-home-layout');
-      }
-    }
   }, []);
 
   // Auto cleanup when devices change
@@ -253,18 +392,6 @@ export const DeviceProvider = ({ children }) => {
     return () => clearTimeout(timeoutId);
   }, [devices, cleanupInvalidDevices]);
 
-  // Save devices to localStorage when they change
-  useEffect(() => {
-    console.log('Saving devices to localStorage:', Object.keys(devices).length, 'devices');
-    localStorage.setItem('smart-home-devices', JSON.stringify(devices));
-  }, [devices]);
-
-  // Save layout to localStorage when it changes
-  useEffect(() => {
-    console.log('Saving layout to localStorage:', deviceLayouts.length, 'layouts');
-    localStorage.setItem('smart-home-layout', JSON.stringify(deviceLayouts));
-  }, [deviceLayouts]);
-
   // Auto-subscribe to all device topics when MQTT connection is established
   useEffect(() => {
     if (connectionStatus.connected) {
@@ -280,7 +407,7 @@ export const DeviceProvider = ({ children }) => {
         });
       }
     }
-  }, [connectionStatus.connected, subscribeToTopic]);
+  }, [connectionStatus.connected, subscribeToTopic, devices]);
 
   // Process incoming MQTT messages and update device states
   useEffect(() => {
