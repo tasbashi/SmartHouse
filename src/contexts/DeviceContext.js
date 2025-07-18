@@ -44,10 +44,18 @@ export const DeviceProvider = ({ children }) => {
   // Load configuration from database when user is authenticated
   useEffect(() => {
     if (isAuthenticated && dashboardConfig) {
+      // Always load if we have fewer devices locally than in config
+      const configDeviceCount = dashboardConfig.devices ? Object.keys(dashboardConfig.devices).length : 0;
+      const localDeviceCount = Object.keys(devices).length;
       
-      // Check if this is a newer config than what we have
+      // Skip only if we have the same or more devices and config is not newer
       const configLastUpdated = dashboardConfig.lastUpdated;
-      if (lastSyncTime && configLastUpdated && new Date(configLastUpdated) <= new Date(lastSyncTime)) {
+      const shouldSkip = lastSyncTime && 
+                        configLastUpdated && 
+                        new Date(configLastUpdated) <= new Date(lastSyncTime) && 
+                        localDeviceCount >= configDeviceCount;
+      
+      if (shouldSkip) {
         return;
       }
       
@@ -88,7 +96,7 @@ export const DeviceProvider = ({ children }) => {
       });
       setLastSyncTime(null);
     }
-  }, [isAuthenticated, dashboardConfig, lastSyncTime]);
+  }, [isAuthenticated, dashboardConfig, lastSyncTime, devices, deviceLayouts]);
 
   // Migration function to move localStorage data to database (one-time)
   useEffect(() => {
@@ -484,8 +492,9 @@ export const DeviceProvider = ({ children }) => {
     // Add to layout if not exists
     setDeviceLayouts(prev => {
       const exists = prev.find(layout => layout.i === deviceId);
+      
       if (!exists) {
-        return [...prev, {
+        const newLayout = [...prev, {
           i: deviceId,
           x: 0,
           y: Infinity,
@@ -496,6 +505,8 @@ export const DeviceProvider = ({ children }) => {
           minH: 2,
           maxH: 8
         }];
+        
+        return newLayout;
       }
       return prev;
     });

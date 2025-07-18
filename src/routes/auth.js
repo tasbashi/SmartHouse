@@ -82,7 +82,6 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error('Logout error:', err);
       return res.status(500).json({ error: 'Could not log out' });
     }
     res.json({ message: 'Logout successful' });
@@ -111,20 +110,11 @@ router.get('/dashboard-config', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    console.log('Loading dashboard config for user:', req.session.userId);
-    
     // Get dashboard config from dashboard_config table only
     const dashboardConfig = await database.getDashboardConfig(req.session.userId);
     
-    console.log('Loaded config:', {
-      hasConfig: !!dashboardConfig,
-      configKeys: dashboardConfig ? Object.keys(dashboardConfig) : [],
-      hasLayouts: dashboardConfig && dashboardConfig.deviceLayouts ? dashboardConfig.deviceLayouts.length : 0
-    });
-    
     res.json({ config: dashboardConfig || {} });
   } catch (error) {
-    console.error('Dashboard config load error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -137,27 +127,33 @@ router.post('/dashboard-config', async (req, res) => {
 
     const { config } = req.body;
     
-    console.log('Saving dashboard config for user:', req.session.userId);
-    console.log('Config keys:', config ? Object.keys(config) : []);
-    if (config && config.deviceLayouts) {
-      console.log('Layout items count:', config.deviceLayouts.length);
-      console.log('First few layout items:', config.deviceLayouts.slice(0, 3).map(item => ({
-        i: item.i,
-        x: item.x,
-        y: item.y,
-        w: item.w,
-        h: item.h
-      })));
-    }
-    
     // Save complete config to dashboard_config table (including layouts)
     const result = await database.saveDashboardConfig(req.session.userId, config);
     
-    console.log('Save result:', result);
-    
     res.json({ message: 'Dashboard configuration saved', success: true, result });
   } catch (error) {
-    console.error('Dashboard config save error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Debug endpoint to check what's in the database
+router.get('/debug-config', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const dashboardConfig = await database.getDashboardConfig(req.session.userId);
+    
+    res.json({ 
+      userId: req.session.userId,
+      config: dashboardConfig,
+      hasConfig: !!dashboardConfig,
+      configKeys: dashboardConfig ? Object.keys(dashboardConfig) : [],
+      layoutCount: dashboardConfig && dashboardConfig.deviceLayouts ? dashboardConfig.deviceLayouts.length : 0,
+      layoutItems: dashboardConfig && dashboardConfig.deviceLayouts ? dashboardConfig.deviceLayouts : []
+    });
+  } catch (error) {
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });

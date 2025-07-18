@@ -77,8 +77,6 @@ let connectionStatus = {
 
 // Socket.IO connection
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-  
   // Send current connection status
   socket.emit('connectionStatus', connectionStatus);
   
@@ -126,8 +124,6 @@ io.on('connection', (socket) => {
     mqttClient.unsubscribe(topic, (error) => {
       if (error) {
         socket.emit('subscriptionError', `Unsubscription error: ${error.message}`);
-      } else {
-        console.log(`Unsubscribed from ${topic}`);
       }
     });
   });
@@ -156,14 +152,12 @@ io.on('connection', (socket) => {
     mqttClient.publish(topic, messageToSend, publishOptions, (error) => {
       if (error) {
         socket.emit('publishError', `Publish error: ${error.message}`);
-      } else {
-        console.log(`Published to ${topic}: ${messageToSend}`);
       }
     });
   });
   
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    // User disconnected
   });
 });
 
@@ -308,8 +302,6 @@ app.post('/api/connect', requireAuth, async (req, res) => {
           options.key = clientKey;
           options.rejectUnauthorized = true;
           options.servername = brokerAddress; // SNI support for AWS IoT
-          
-          console.log('AWS IoT sertifikaları kullanılıyor');
         } else {
           return res.status(400).json({ error: 'AWS sertifikaları eksik (ca-cert.pem, client-cert.pem, client-key.pem gerekli)' });
         }
@@ -327,12 +319,9 @@ app.post('/api/connect', requireAuth, async (req, res) => {
       }
     }
 
-    console.log('Bağlantı denenecek:', brokerAddress, port, options.protocol);
-
     mqttClient = mqtt.connect(`${options.protocol}://${brokerAddress}`, options);
 
     mqttClient.on('connect', () => {
-      console.log('MQTT Broker\'a bağlandı');
       connectionStatus = {
         connected: true,
         brokerAddress,
@@ -347,7 +336,6 @@ app.post('/api/connect', requireAuth, async (req, res) => {
     });
 
     mqttClient.on('error', (error) => {
-      console.error('MQTT Bağlantı hatası:', error);
       connectionStatus = {
         connected: false,
         brokerAddress,
@@ -362,7 +350,6 @@ app.post('/api/connect', requireAuth, async (req, res) => {
     });
 
     mqttClient.on('close', () => {
-      console.log('MQTT bağlantısı kapandı');
       connectionStatus.connected = false;
       io.emit('connectionStatus', connectionStatus);
     });
@@ -379,7 +366,6 @@ app.post('/api/connect', requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Bağlantı hatası:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -473,5 +459,5 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server http://localhost:${PORT} adresinde çalışıyor`);
+  // Server started
 }); 

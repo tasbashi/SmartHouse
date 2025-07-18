@@ -12,9 +12,8 @@ class Database {
     const dbPath = path.join(__dirname, '../../database.sqlite');
     this.db = new sqlite3.Database(dbPath, (err) => {
       if (err) {
-        console.error('Error opening database:', err);
+        // Error opening database
       } else {
-        console.log('Connected to SQLite database');
         this.createTables();
       }
     });
@@ -228,9 +227,9 @@ class Database {
     if (this.db) {
       this.db.close((err) => {
         if (err) {
-          console.error('Error closing database:', err);
+          // Error closing database
         } else {
-          console.log('Database connection closed');
+          // Database connection closed
         }
       });
     }
