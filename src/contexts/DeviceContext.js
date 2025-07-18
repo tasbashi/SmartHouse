@@ -197,30 +197,9 @@ export const DeviceProvider = ({ children }) => {
     }
   }, [isAuthenticated, devices, deviceLayouts, deletedTopics, deviceFilters, saveDashboardConfig]);
 
-  // Save to database when devices change
-  useEffect(() => {
-    if (isAuthenticated && Object.keys(devices).length > 0) {
-      const timeoutId = setTimeout(() => {
-        saveConfigToDatabase();
-      }, 500); // Reduced debounce time from 1000ms to 500ms
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [devices, isAuthenticated, saveConfigToDatabase]);
-
-  // Note: Layout changes are now handled manually in Dashboard edit mode
-  // Removed automatic layout saving to prevent conflicts with manual save
-
-  // Save to database when deleted topics change
-  useEffect(() => {
-    if (isAuthenticated) {
-      const timeoutId = setTimeout(() => {
-        saveConfigToDatabase();
-      }, 500); // Reduced debounce time from 1000ms to 500ms
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [deletedTopics, isAuthenticated, saveConfigToDatabase]);
+  // Note: Automatic saving has been disabled to prevent unwanted saves
+  // Save operations are now only triggered manually through Dashboard save button
+  // or when adding/removing devices manually
 
   // Function to clean up null/invalid devices
   const cleanupInvalidDevices = useCallback(() => {
@@ -324,10 +303,7 @@ export const DeviceProvider = ({ children }) => {
     // Clear deleted topics
     setDeletedTopics(new Set());
     
-    // Save cleared state to database
-    if (isAuthenticated) {
-      saveConfigToDatabase();
-    }
+    // Note: Manual save required after clearing all devices
     
   }, [deviceOfflineTimers, isAuthenticated, saveConfigToDatabase]);
 

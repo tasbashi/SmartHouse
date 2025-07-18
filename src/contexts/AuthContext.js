@@ -78,6 +78,12 @@ export const AuthProvider = ({ children }) => {
 
   const saveDashboardConfig = async (config) => {
     try {
+      console.log('Saving dashboard config...', {
+        hasConfig: !!config,
+        configKeys: config ? Object.keys(config) : [],
+        timestamp: new Date().toISOString()
+      });
+      
       const response = await fetch('/api/auth/dashboard-config', {
         method: 'POST',
         headers: {
@@ -89,14 +95,16 @@ export const AuthProvider = ({ children }) => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Dashboard config saved successfully:', data);
         setDashboardConfig(config);
         return true;
       } else {
-        // Removed console.error for production
+        const errorData = await response.text();
+        console.error('Failed to save dashboard config:', response.status, errorData);
         return false;
       }
     } catch (error) {
-      // Removed console.error for production
+      console.error('Error saving dashboard config:', error);
       return false;
     }
   };

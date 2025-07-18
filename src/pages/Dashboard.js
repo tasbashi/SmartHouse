@@ -72,6 +72,11 @@ const Dashboard = () => {
       return;
     }
 
+    console.log('Starting manual layout save...', {
+      pendingLayoutItems: pendingLayout.length,
+      timestamp: new Date().toISOString()
+    });
+
     setIsSaving(true);
     setSaveMessage('');
 
@@ -95,16 +100,25 @@ const Dashboard = () => {
         lastUpdated: new Date().toISOString()
       };
 
+      console.log('Saving dashboard config with data:', {
+        devicesCount: Object.keys(devices).length,
+        layoutsCount: pendingLayout.length,
+        deletedTopicsCount: deletedTopics?.size || 0
+      });
+
       // Save to database
       const success = await saveDashboardConfig(config);
       
       if (success) {
+        console.log('Layout save completed successfully');
         setSaveMessage('✅ Layout saved successfully!');
         setPendingLayout(null);
       } else {
+        console.error('Layout save failed');
         setSaveMessage('❌ Failed to save layout');
       }
     } catch (error) {
+      console.error('Error during layout save:', error);
       setSaveMessage('❌ Error saving layout');
     } finally {
       setIsSaving(false);
