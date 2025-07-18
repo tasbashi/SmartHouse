@@ -16,7 +16,6 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [pendingLayout, setPendingLayout] = useState(null);
 
   const deviceList = Object.values(devices).filter(device => device.enabled !== false); // Only show enabled devices
   const onlineDevices = deviceList.filter(device => device.isOnline);
@@ -32,6 +31,7 @@ const Dashboard = () => {
   };
 
   const timeoutRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -39,77 +39,71 @@ const Dashboard = () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
   }, []);
 
+  // Auto-save function with debouncing
+  const autoSaveLayout = useCallback(async (layout) => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save (500ms delay to avoid too frequent saves)
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      setSaveMessage('💾 Auto-saving layout...');
+
+      try {
+        // Update the layout in context
+        updateLayout(layout);
+        
+        // Build the complete config object for saving using real context data
+        const config = {
+          devices,
+          deviceLayouts: layout,
+          deletedTopics: Array.from(deletedTopics || new Set()),
+          deviceFilters: deviceFilters || {
+            type: 'all',
+            status: 'all',
+            search: '',
+            room: '',
+            controllable: '',
+            enabled: 'all'
+          },
+          lastUpdated: new Date().toISOString()
+        };
+
+        // Save to database
+        const success = await saveDashboardConfig(config);
+        
+        if (success) {
+          setSaveMessage('✅ Layout saved automatically!');
+        } else {
+          setSaveMessage('❌ Failed to auto-save layout');
+        }
+      } catch (error) {
+        setSaveMessage('❌ Error auto-saving layout');
+      } finally {
+        setIsSaving(false);
+        setTimeout(() => setSaveMessage(''), 2000);
+      }
+    }, 500);
+  }, [devices, deletedTopics, deviceFilters, updateLayout, saveDashboardConfig]);
+
   const handleLayoutChange = useCallback((layout, layouts) => {
     if (layout && isEditMode) {
-      // Store pending layout changes, don't auto-save in edit mode
-      setPendingLayout(layout);
+      // Auto-save the layout when changes are made
+      autoSaveLayout(layout);
     }
-  }, [isEditMode, deviceLayouts.length]);
+  }, [isEditMode, autoSaveLayout]);
 
   const handleToggleEditMode = () => {
-    if (isEditMode && pendingLayout) {
-      // Exiting edit mode with pending changes - ask user to save
-      const confirmExit = window.confirm('You have unsaved layout changes. Do you want to save them?');
-      if (confirmExit) {
-        handleSaveLayout();
-        return;
-      } else {
-        // Discard changes
-        setPendingLayout(null);
-      }
-    }
     setIsEditMode(!isEditMode);
     setSaveMessage('');
-  };
-
-  const handleSaveLayout = async () => {
-    if (!pendingLayout) {
-      setSaveMessage('No changes to save');
-      setTimeout(() => setSaveMessage(''), 3000);
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveMessage('');
-
-    try {
-      // Update the layout in context
-      updateLayout(pendingLayout);
-      
-      // Build the complete config object for saving using real context data
-      const config = {
-        devices,
-        deviceLayouts: pendingLayout,
-        deletedTopics: Array.from(deletedTopics || new Set()),
-        deviceFilters: deviceFilters || {
-          type: 'all',
-          status: 'all',
-          search: '',
-          room: '',
-          controllable: '',
-          enabled: 'all'
-        },
-        lastUpdated: new Date().toISOString()
-      };
-
-      // Save to database
-      const success = await saveDashboardConfig(config);
-      
-      if (success) {
-        setSaveMessage('✅ Layout saved successfully!');
-        setPendingLayout(null);
-      } else {
-        setSaveMessage('❌ Failed to save layout');
-      }
-    } catch (error) {
-      setSaveMessage('❌ Error saving layout');
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => setSaveMessage(''), 4000);
-    }
   };
 
   const handleSync = async () => {
@@ -236,26 +230,7 @@ const Dashboard = () => {
             {isEditMode ? 'Exit Edit' : 'Edit Layout'}
           </button>
 
-          {/* Save Button - Only visible in edit mode */}
-          {isEditMode && (
-            <button
-              onClick={handleSaveLayout}
-              disabled={isSaving || !pendingLayout}
-              className={`btn w-full sm:w-auto ${
-                pendingLayout 
-                  ? 'bg-green-500 hover:bg-green-600 text-white' 
-                  : 'btn-secondary opacity-50 cursor-not-allowed'
-              }`}
-              title="Save layout changes"
-            >
-              <Icon 
-                name={isSaving ? 'loader-2' : 'save'} 
-                size={20} 
-                className={`mr-2 ${isSaving ? 'animate-spin' : ''}`} 
-              />
-              {isSaving ? 'Saving...' : 'Save Layout'}
-            </button>
-          )}
+
 
           <button
             onClick={handleSync}
@@ -292,31 +267,39 @@ const Dashboard = () => {
                 Edit Mode Active
               </h3>
               <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                You can now drag and resize widgets. Click "Save Layout" to keep your changes or "Exit Edit" to cancel.
+                You can now drag and resize widgets. Changes will be saved automatically.
               </p>
-              {pendingLayout && (
-                <p className="text-sm text-orange-600 dark:text-orange-400 mt-2 font-medium">
-                  ⚠️ You have unsaved changes
-                </p>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Save Message */}
+      {/* Save Notification - Top Right */}
       {saveMessage && (
-        <div className={`mb-4 p-3 rounded-lg ${
-          saveMessage.includes('✅') 
-            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
-            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-        }`}>
-          <div className="flex items-center space-x-2">
-            <Icon 
-              name={saveMessage.includes('✅') ? 'check-circle' : 'alert-circle'} 
-              size={16} 
-            />
-            <span className="text-sm font-medium">{saveMessage}</span>
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <div className={`px-3 py-2 rounded-lg shadow-lg ${
+            saveMessage.includes('✅') 
+              ? 'bg-green-500 text-white'
+              : saveMessage.includes('💾')
+              ? 'bg-blue-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}>
+            <div className="flex items-center space-x-2">
+              <Icon 
+                name={
+                  saveMessage.includes('✅') ? 'check' : 
+                  saveMessage.includes('💾') ? 'save' : 
+                  'alert-circle'
+                } 
+                size={14} 
+                className={saveMessage.includes('💾') ? 'animate-pulse' : ''}
+              />
+              <span className="text-xs font-medium">
+                {saveMessage.includes('💾') ? 'Saving...' : 
+                 saveMessage.includes('✅') ? 'Saved successfully' : 
+                 'Save failed'}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -420,18 +403,19 @@ const Dashboard = () => {
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 8, sm: 4, xs: 2, xxs: 1 }}
           rowHeight={80}
-          margin={[12, 12]}
+          margin={[4, 4]}
           containerPadding={[0, 0]}
           isDraggable={isEditMode}
           isResizable={isEditMode}
           onLayoutChange={handleLayoutChange}
-          compactType="vertical"
-          preventCollision={false}
+          compactType={isEditMode ? null : "vertical"}
+          preventCollision={isEditMode}
           useCSSTransforms={true}
           autoSize={true}
           resizeHandles={isEditMode && window.innerWidth >= 768 ? ['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne'] : []}
           allowOverlap={false}
           isBounded={true}
+          verticalCompact={!isEditMode}
           transformScale={1}
           draggableHandle={isEditMode ? ".widget-card" : ""}
         >
