@@ -368,7 +368,6 @@ app.post('/api/connect', requireAuth, async (req, res) => {
     });
 
     mqttClient.on('message', (topic, message, packet) => {
-      console.log('Message received:', topic, message.toString());
       const messageData = {
         topic,
         message: message.toString(),

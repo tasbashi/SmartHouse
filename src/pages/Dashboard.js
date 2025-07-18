@@ -103,7 +103,14 @@ const Dashboard = () => {
       console.log('Saving dashboard config with data:', {
         devicesCount: Object.keys(devices).length,
         layoutsCount: pendingLayout.length,
-        deletedTopicsCount: deletedTopics?.size || 0
+        deletedTopicsCount: deletedTopics?.size || 0,
+        pendingLayoutData: pendingLayout.map(item => ({
+          i: item.i,
+          x: item.x,
+          y: item.y,
+          w: item.w,
+          h: item.h
+        }))
       });
 
       // Save to database
