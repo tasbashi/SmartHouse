@@ -33,12 +33,6 @@ const Devices = () => {
   const deviceTypes = Object.keys(deviceConfig);
   const rooms = [...new Set(Object.values(devices).filter(device => device && device.room).map(device => device.room))];
   
-  // Debug logging
-  console.log('Devices page - Raw devices count:', Object.keys(devices).length);
-  console.log('Devices page - Raw devices:', Object.values(devices));
-  console.log('Devices page - Filtered devices count:', deviceList.length);
-  console.log('Devices page - Device filters:', deviceFilters);
-  
   // Device statistics
   const totalDevices = Object.keys(devices).length;
   const onlineDevices = Object.values(devices).filter(device => device.isOnline).length;
@@ -62,22 +56,16 @@ const Devices = () => {
     }
   };
 
-  const handleAutoDetect = () => {
-    console.log('Auto-detect button clicked');
-    console.log('Connection status:', connectionStatus);
-    console.log('Current devices count:', Object.keys(devices).length);
-    
+  const handleAutoDetect = async () => {
     const detectedDevices = autoDetectDevices();
-    console.log('Auto-detected devices:', detectedDevices);
     
     if (detectedDevices.length > 0) {
-      console.log(`Adding ${detectedDevices.length} detected devices...`);
       detectedDevices.forEach((device, index) => {
-        console.log(`Adding device ${index + 1}:`, device);
-        addDevice(device);
+        setTimeout(() => {
+          addDevice(device);
+        }, index * 100);
       });
     } else {
-      console.log('No devices detected');
     }
   };
 
@@ -160,13 +148,7 @@ const Devices = () => {
   };
 
   const handleCleanupInvalidDevices = () => {
-    console.log('Manual cleanup triggered');
-    const cleanedCount = cleanupInvalidDevices();
-    if (cleanedCount > 0) {
-      alert(`Cleaned up ${cleanedCount} invalid/null devices from the system.`);
-    } else {
-      alert('No invalid devices found. All devices are valid.');
-    }
+    cleanupInvalidDevices();
   };
 
 
@@ -192,10 +174,8 @@ const Devices = () => {
       }
     ];
     
-    console.log('Sending test MQTT messages for auto-detection...');
     testTopics.forEach((test, index) => {
       setTimeout(() => {
-        console.log(`Sending test message ${index + 1}:`, test);
         publishMessage(test.topic, test.payload, 0);
       }, index * 1000);
     });

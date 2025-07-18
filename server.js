@@ -105,7 +105,6 @@ io.on('connection', (socket) => {
         socket.emit('subscriptionError', `Subscription error: ${error.message}`);
       } else {
         socket.emit('subscriptionConfirmed', topic);
-        console.log(`Subscribed to ${topic} with QoS ${subscribeOptions.qos}`);
       }
     });
   });
@@ -466,6 +465,11 @@ app.post('/api/publish', requireAuth, (req, res) => {
 // Get connection status
 app.get('/api/status', requireAuth, (req, res) => {
   res.json(connectionStatus);
+});
+
+// Catch-all route for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;

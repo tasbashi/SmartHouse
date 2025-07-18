@@ -31,12 +31,10 @@ export const MqttProvider = ({ children }) => {
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log('Connected to server');
     });
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
-      console.log('Disconnected from server');
     });
 
     newSocket.on('connectionStatus', (status) => {
@@ -57,7 +55,7 @@ export const MqttProvider = ({ children }) => {
     });
 
     newSocket.on('subscriptionError', (error) => {
-      console.error('Subscription error:', error);
+      // Removed console.error for production
     });
 
     return () => {
@@ -118,19 +116,15 @@ export const MqttProvider = ({ children }) => {
 
   const unsubscribeFromTopic = useCallback((topic) => {
     if (!socket || !connectionStatus.connected) {
-      console.log('Cannot unsubscribe: socket not connected');
       return;
     }
 
-    console.log('Unsubscribing from topic:', topic);
     socket.emit('unsubscribe', { topic });
     
     // Remove from subscribed topics immediately
     setSubscribedTopics(prev => {
       const newSet = new Set(prev);
       newSet.delete(topic);
-      console.log('Topic removed from subscription list:', topic);
-      console.log('Remaining subscriptions:', Array.from(newSet));
       return newSet;
     });
     
@@ -146,7 +140,6 @@ export const MqttProvider = ({ children }) => {
     const sendTopic = topic.endsWith('_send') ? topic : `${topic}_send`;
     
     const payload = typeof message === 'string' ? message : JSON.stringify(message);
-    console.log(`Publishing to topic: ${sendTopic}`, payload);
     socket.emit('publish', { topic: sendTopic, message: payload, qos });
   }, [socket, connectionStatus.connected]);
 

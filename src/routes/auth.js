@@ -39,7 +39,6 @@ router.post('/register', async (req, res) => {
       user: { id: user.id, username: user.username, email: user.email }
     });
   } catch (error) {
-    console.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -75,7 +74,6 @@ router.post('/login', async (req, res) => {
       user: { id: user.id, username: user.username, email: user.email }
     });
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -113,10 +111,32 @@ router.get('/dashboard-config', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const config = await database.getDashboardConfig(req.session.userId);
+    // Get dashboard layout from user_settings table
+    const layoutString = await database.getUserSetting(req.session.userId, 'dashboard_layout');
+    let config = {};
+    
+    if (layoutString) {
+      try {
+        const layoutData = JSON.parse(layoutString);
+        // Convert to expected format
+        config = {
+          deviceLayouts: layoutData.layouts || [],
+          lastUpdated: layoutData.lastUpdated,
+          version: layoutData.version
+        };
+      } catch (error) {
+        // Removed console.error for production
+      }
+    }
+    
+    // Get other dashboard config from dashboard_config table
+    const dashboardConfig = await database.getDashboardConfig(req.session.userId);
+    if (dashboardConfig) {
+      config = { ...dashboardConfig, ...config };
+    }
+    
     res.json({ config: config || {} });
   } catch (error) {
-    console.error('Get dashboard config error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -128,11 +148,23 @@ router.post('/dashboard-config', async (req, res) => {
     }
 
     const { config } = req.body;
+    
+    // Save layout to user_settings table if it exists
+    if (config.deviceLayouts) {
+      const layoutData = {
+        layouts: config.deviceLayouts,
+        lastUpdated: new Date().toISOString(),
+        version: '1.0'
+      };
+      await database.saveUserSetting(req.session.userId, 'dashboard_layout', JSON.stringify(layoutData));
+    }
+    
+    // Save other config to dashboard_config table
     await database.saveDashboardConfig(req.session.userId, config);
-    res.json({ message: 'Dashboard configuration saved' });
+    
+    res.json({ message: 'Dashboard configuration saved', success: true });
   } catch (error) {
-    console.error('Save dashboard config error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

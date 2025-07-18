@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      // Removed console.error for production
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
         setDashboardConfig({});
       }
     } catch (error) {
-      console.error('Logout failed:', error);
+      // Removed console.error for production
     }
   };
 
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         setDashboardConfig(data.config || {});
       }
     } catch (error) {
-      console.error('Failed to load dashboard config:', error);
+      // Removed console.error for production
     }
   };
 
@@ -88,18 +88,20 @@ export const AuthProvider = ({ children }) => {
       });
       
       if (response.ok) {
+        const data = await response.json();
         setDashboardConfig(config);
         return true;
+      } else {
+        // Removed console.error for production
+        return false;
       }
-      return false;
     } catch (error) {
-      console.error('Failed to save dashboard config:', error);
+      // Removed console.error for production
       return false;
     }
   };
 
   const refreshDashboardConfig = async () => {
-    console.log('Force refreshing dashboard config...');
     await loadDashboardConfig();
   };
 

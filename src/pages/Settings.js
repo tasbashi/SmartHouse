@@ -47,7 +47,7 @@ const Settings = () => {
         const settings = JSON.parse(saved);
         setConnectionSettings(prev => ({ ...prev, ...settings }));
       } catch (error) {
-        console.error('Error loading connection settings:', error);
+        // Removed console.error for production
       }
     }
   }, []);
@@ -66,7 +66,7 @@ const Settings = () => {
         setCertificates(result.certificates || []);
       }
     } catch (error) {
-      console.error('Error loading certificates:', error);
+      // Removed console.error for production
     }
   };
 

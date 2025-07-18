@@ -9,11 +9,14 @@ import Icon from '../components/ui/Icon';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const Dashboard = () => {
-  const { devices, deviceLayouts, updateLayout, clearAllDevices, cleanupInvalidDevices, autoDetectDevices, addDevice } = useDevices();
+  const { devices, deviceLayouts, updateLayout, clearAllDevices, cleanupInvalidDevices, autoDetectDevices, addDevice, deletedTopics, deviceFilters } = useDevices();
   const { connectionStatus } = useMqtt();
-  const { refreshDashboardConfig } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
+  const { refreshDashboardConfig, saveDashboardConfig } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [pendingLayout, setPendingLayout] = useState(null);
 
   const deviceList = Object.values(devices).filter(device => device.enabled !== false); // Only show enabled devices
   const onlineDevices = deviceList.filter(device => device.isOnline);
@@ -40,25 +43,82 @@ const Dashboard = () => {
   }, []);
 
   const handleLayoutChange = useCallback((layout, layouts) => {
-    if (isEditing && layout) {
-      // Debounce layout updates to prevent excessive re-renders
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => {
-      updateLayout(layout);
-      }, 100);
+    if (layout && isEditMode) {
+      // Store pending layout changes, don't auto-save in edit mode
+      setPendingLayout(layout);
     }
-  }, [isEditing, updateLayout]);
+  }, [isEditMode]);
 
-  const handleManualSync = async () => {
+  const handleToggleEditMode = () => {
+    if (isEditMode && pendingLayout) {
+      // Exiting edit mode with pending changes - ask user to save
+      const confirmExit = window.confirm('You have unsaved layout changes. Do you want to save them?');
+      if (confirmExit) {
+        handleSaveLayout();
+        return;
+      } else {
+        // Discard changes
+        setPendingLayout(null);
+      }
+    }
+    setIsEditMode(!isEditMode);
+    setSaveMessage('');
+  };
+
+  const handleSaveLayout = async () => {
+    if (!pendingLayout) {
+      setSaveMessage('No changes to save');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('');
+
+    try {
+      // Update the layout in context
+      updateLayout(pendingLayout);
+      
+      // Build the complete config object for saving using real context data
+      const config = {
+        devices,
+        deviceLayouts: pendingLayout,
+        deletedTopics: Array.from(deletedTopics || new Set()),
+        deviceFilters: deviceFilters || {
+          type: 'all',
+          status: 'all',
+          search: '',
+          room: '',
+          controllable: '',
+          enabled: 'all'
+        },
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Save to database
+      const success = await saveDashboardConfig(config);
+      
+      if (success) {
+        setSaveMessage('✅ Layout saved successfully!');
+        setPendingLayout(null);
+      } else {
+        setSaveMessage('❌ Failed to save layout');
+      }
+    } catch (error) {
+      setSaveMessage('❌ Error saving layout');
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(''), 4000);
+    }
+  };
+
+  const handleSync = async () => {
     setIsSyncing(true);
     try {
-      console.log('Manual sync triggered by user');
       await refreshDashboardConfig();
-      console.log('Manual sync completed');
+      await cleanupInvalidDevices();
     } catch (error) {
-      console.error('Manual sync failed:', error);
+      // Removed console.error for production
     } finally {
       setIsSyncing(false);
     }
@@ -99,21 +159,14 @@ const Dashboard = () => {
   const stats = getQuickStats();
 
   const handleAutoDetect = () => {
-    console.log('Auto-detect button clicked from Dashboard');
-    console.log('Connection status:', connectionStatus);
-    console.log('Current devices count:', Object.keys(devices).length);
     
     const detectedDevices = autoDetectDevices();
-    console.log('Auto-detected devices:', detectedDevices);
     
     if (detectedDevices.length > 0) {
-      console.log(`Adding ${detectedDevices.length} detected devices...`);
       detectedDevices.forEach((device, index) => {
-        console.log(`Adding device ${index + 1}:`, device);
         addDevice(device);
       });
     } else {
-      console.log('No devices detected');
     }
   };
 
@@ -165,8 +218,47 @@ const Dashboard = () => {
         </div>
         
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
+          {/* Edit Mode Toggle */}
           <button
-            onClick={handleManualSync}
+            onClick={handleToggleEditMode}
+            className={`btn w-full sm:w-auto ${
+              isEditMode 
+                ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                : 'btn-secondary'
+            }`}
+            title={isEditMode ? 'Exit edit mode' : 'Enter edit mode to rearrange widgets'}
+          >
+            <Icon 
+              name={isEditMode ? 'lock' : 'edit'} 
+              size={20} 
+              className="mr-2" 
+            />
+            {isEditMode ? 'Exit Edit' : 'Edit Layout'}
+          </button>
+
+          {/* Save Button - Only visible in edit mode */}
+          {isEditMode && (
+            <button
+              onClick={handleSaveLayout}
+              disabled={isSaving || !pendingLayout}
+              className={`btn w-full sm:w-auto ${
+                pendingLayout 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'btn-secondary opacity-50 cursor-not-allowed'
+              }`}
+              title="Save layout changes"
+            >
+              <Icon 
+                name={isSaving ? 'loader-2' : 'save'} 
+                size={20} 
+                className={`mr-2 ${isSaving ? 'animate-spin' : ''}`} 
+              />
+              {isSaving ? 'Saving...' : 'Save Layout'}
+            </button>
+          )}
+
+          <button
+            onClick={handleSync}
             disabled={isSyncing}
             className="btn btn-secondary w-full sm:w-auto"
             title="Sync dashboard with other devices"
@@ -179,14 +271,6 @@ const Dashboard = () => {
             {isSyncing ? 'Syncing...' : 'Sync'}
           </button>
           
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`btn w-full sm:w-auto ${isEditing ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Icon name={isEditing ? 'check' : 'edit'} size={20} className="mr-2" />
-            {isEditing ? 'Done' : 'Edit Layout'}
-          </button>
-          
           <div className="flex items-center justify-center sm:justify-start space-x-2">
             <div className={`w-2 h-2 rounded-full ${
               connectionStatus.connected ? 'bg-success-500' : 'bg-danger-500'
@@ -197,6 +281,45 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Mode Info Banner */}
+      {isEditMode && (
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-6">
+          <div className="flex items-start space-x-3">
+            <Icon name="info" size={20} className="text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                Edit Mode Active
+              </h3>
+              <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                You can now drag and resize widgets. Click "Save Layout" to keep your changes or "Exit Edit" to cancel.
+              </p>
+              {pendingLayout && (
+                <p className="text-sm text-orange-600 dark:text-orange-400 mt-2 font-medium">
+                  ⚠️ You have unsaved changes
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Message */}
+      {saveMessage && (
+        <div className={`mb-4 p-3 rounded-lg ${
+          saveMessage.includes('✅') 
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
+            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <Icon 
+              name={saveMessage.includes('✅') ? 'check-circle' : 'alert-circle'} 
+              size={16} 
+            />
+            <span className="text-sm font-medium">{saveMessage}</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid mobile-grid-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -291,41 +414,27 @@ const Dashboard = () => {
           Device Overview
         </h2>
         
-        {isEditing && (
-          <div className="mb-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <div className="flex items-start space-x-2">
-              <Icon name="grid-3x3" size={16} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-              <div className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
-                <strong>Layout Edit Mode:</strong>
-                <div className="mt-1 space-y-1">
-                  <div className="hidden sm:block">Drag widgets to move them • Hover over edges/corners to resize • Changes auto-save</div>
-                  <div className="sm:hidden">Drag widgets to move them • Changes auto-save</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         <ResponsiveGridLayout
-          className={`layout ${isEditing ? 'editing-mode' : ''}`}
+          className="layout"
           layouts={layouts}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 8, sm: 4, xs: 2, xxs: 1 }}
-          rowHeight={60}
-          margin={[6, 6]}
+          rowHeight={80}
+          margin={[12, 12]}
           containerPadding={[0, 0]}
-          isDraggable={isEditing}
-          isResizable={isEditing && window.innerWidth >= 768}
+          isDraggable={isEditMode}
+          isResizable={isEditMode}
           onLayoutChange={handleLayoutChange}
           compactType="vertical"
           preventCollision={false}
           useCSSTransforms={true}
           autoSize={true}
-          resizeHandles={window.innerWidth >= 768 ? ['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne'] : []}
+          resizeHandles={isEditMode && window.innerWidth >= 768 ? ['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne'] : []}
           allowOverlap={false}
           isBounded={true}
           transformScale={1}
-          draggableHandle=".drag-handle"
+          draggableHandle={isEditMode ? ".widget-card" : ""}
         >
           {deviceList.map((device) => {
             const layout = deviceLayouts.find(l => l.i === device.id);
@@ -338,14 +447,14 @@ const Dashboard = () => {
                   y: layout?.y || Infinity,
                   w: layout?.w || 6,
                   h: layout?.h || 6,
-                  minW: window.innerWidth >= 768 ? 4 : 1,
-                  maxW: window.innerWidth >= 768 ? 12 : 1,
-                  minH: 4,
-                  maxH: 10
+                  minW: 2,
+                  maxW: 12,
+                  minH: 2,
+                  maxH: 8
                 }}
                 className="touch-manipulation"
               >
-                <DeviceWidget device={device} />
+                <DeviceWidget device={device} isEditMode={isEditMode} />
               </div>
             );
           })}
