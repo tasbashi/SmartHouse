@@ -9,6 +9,7 @@ const Devices = () => {
     deviceConfig, 
     addDevice, 
     removeDevice, 
+    updateDevice,
     toggleDeviceEnabled,
     autoDetectDevices, 
     getFilteredDevices,
@@ -20,6 +21,7 @@ const Devices = () => {
   const { connectionStatus, publishMessage } = useMqtt();
   
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState(new Set());
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [newDevice, setNewDevice] = useState({
@@ -28,6 +30,7 @@ const Devices = () => {
     topic: '',
     room: 'Living Room'
   });
+  const [editDevice, setEditDevice] = useState(null);
 
   const deviceList = getFilteredDevices();
   const deviceTypes = Object.keys(deviceConfig);
@@ -53,6 +56,35 @@ const Devices = () => {
         room: 'Living Room'
       });
       setShowAddModal(false);
+    }
+  };
+
+  const handleEditDevice = (device) => {
+    setEditDevice({
+      id: device.id,
+      name: device.name,
+      type: device.type,
+      topic: device.topic,
+      room: device.room
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditDevice = async () => {
+    if (editDevice && editDevice.name && editDevice.topic) {
+      // Update the device using the updateDevice function from context
+      await updateDevice(editDevice.id, {
+        name: editDevice.name,
+        type: editDevice.type,
+        topic: editDevice.topic,
+        room: editDevice.room,
+        icon: deviceConfig[editDevice.type]?.icon || 'alert-circle',
+        controllable: deviceConfig[editDevice.type]?.controllable || false,
+        config: deviceConfig[editDevice.type] || {}
+      });
+      
+      setEditDevice(null);
+      setShowEditModal(false);
     }
   };
 
@@ -503,6 +535,17 @@ const Devices = () => {
                 </div>
                 
                 <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditDevice(device);
+                  }}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-primary-600"
+                  title="Edit device"
+                >
+                  <Icon name="edit" size={16} />
+                </button>
+                
+                <button
                   onClick={async (e) => {
                     e.stopPropagation();
                     await toggleDeviceEnabled(device.id);
@@ -686,6 +729,104 @@ const Devices = () => {
                 disabled={!newDevice.name || !newDevice.topic}
               >
                 Add Device
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editDevice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Edit Device
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditDevice(null);
+                }}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                <Icon name="x" size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Device Name
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Living Room Temperature"
+                  value={editDevice.name}
+                  onChange={(e) => setEditDevice({ ...editDevice, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Device Type
+                </label>
+                <select
+                  className="select"
+                  value={editDevice.type}
+                  onChange={(e) => setEditDevice({ ...editDevice, type: e.target.value })}
+                >
+                  {deviceTypes.map(type => (
+                    <option key={type} value={type}>
+                      {getDeviceTypeName(type)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  MQTT Topic
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="home/livingroom/temp"
+                  value={editDevice.topic}
+                  onChange={(e) => setEditDevice({ ...editDevice, topic: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Room
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Living Room"
+                  value={editDevice.room}
+                  onChange={(e) => setEditDevice({ ...editDevice, room: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditDevice(null);
+                }}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditDevice}
+                className="btn btn-primary"
+                disabled={!editDevice.name || !editDevice.topic}
+              >
+                Save Changes
               </button>
             </div>
           </div>

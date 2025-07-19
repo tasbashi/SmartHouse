@@ -582,15 +582,29 @@ export const DeviceProvider = ({ children }) => {
     
   }, [devices, deviceLayouts, deviceOfflineTimers, connectionStatus.connected, unsubscribeFromTopic, isAuthenticated, saveDashboardConfig, deletedTopics, deviceFilters]);
 
-  const updateDevice = useCallback((deviceId, updates) => {
-    setDevices(prev => ({
-      ...prev,
+  const updateDevice = useCallback(async (deviceId, updates) => {
+    const updatedDevices = {
+      ...devices,
       [deviceId]: {
-        ...prev[deviceId],
+        ...devices[deviceId],
         ...updates
       }
-    }));
-  }, []);
+    };
+    setDevices(updatedDevices);
+    
+    // Save changes to database immediately to persist the state
+    if (isAuthenticated) {
+      const config = {
+        devices: updatedDevices,
+        deviceLayouts,
+        deletedTopics: Array.from(deletedTopics),
+        deviceFilters,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await saveDashboardConfig(config);
+    }
+  }, [devices, deviceLayouts, deletedTopics, deviceFilters, isAuthenticated, saveDashboardConfig]);
 
   const toggleDeviceEnabled = useCallback(async (deviceId) => {
     const device = devices[deviceId];
