@@ -15,7 +15,7 @@ export const useDevices = () => {
 
 export const DeviceProvider = ({ children }) => {
   const { messages, subscribeToTopic, publishMessage, connectionStatus, unsubscribeFromTopic } = useMqtt();
-  const { dashboardConfig, saveDashboardConfig, refreshDashboardConfig, isAuthenticated } = useAuth();
+  const { dashboardConfig, saveDashboardConfig, refreshDashboardConfig, isAuthenticated, getUserSetting } = useAuth();
   const [devices, setDevices] = useState({});
   const [deviceLayouts, setDeviceLayouts] = useState([]);
   const [deviceOfflineTimers, setDeviceOfflineTimers] = useState({});
@@ -29,6 +29,12 @@ export const DeviceProvider = ({ children }) => {
     enabled: 'all'
   });
   const [lastSyncTime, setLastSyncTime] = useState(null);
+
+  // Get sensor timeout from user settings
+  const getSensorTimeout = useCallback(() => {
+    const timeoutValue = getUserSetting('sensorTimeout', '60');
+    return (parseInt(timeoutValue) || 60) * 1000; // Convert to milliseconds
+  }, [getUserSetting]);
 
   // Periodic sync to ensure dashboard config is up to date
   useEffect(() => {
@@ -425,7 +431,10 @@ export const DeviceProvider = ({ children }) => {
           }
         }));
         
-        // Set a timer to mark device as offline after 60 seconds of no activity
+        // Get current sensor timeout setting
+        const timeoutMs = getSensorTimeout();
+        
+        // Set a timer to mark device as offline after the configured timeout
         const offlineTimer = setTimeout(() => {
           setDevices(prev => ({
             ...prev,
@@ -439,7 +448,7 @@ export const DeviceProvider = ({ children }) => {
             delete newTimers[deviceId];
             return newTimers;
           });
-        }, 60000); // 60 seconds timeout
+        }, timeoutMs);
         
         setDeviceOfflineTimers(prev => ({
           ...prev,
@@ -450,9 +459,9 @@ export const DeviceProvider = ({ children }) => {
       }
     } else {
     }
-  }, [messages, devices]);
+  }, [messages, devices, getSensorTimeout]);
 
-  const addDevice = useCallback((deviceData) => {
+  const addDevice = useCallback(async (deviceData) => {
     const deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const configType = deviceConfig[deviceData.type] || {};
     
@@ -471,50 +480,58 @@ export const DeviceProvider = ({ children }) => {
       config: configType
     };
 
-    setDevices(prev => ({
-      ...prev,
+    const newDevices = {
+      ...devices,
       [deviceId]: newDevice
-    }));
+    };
+    setDevices(newDevices);
 
     // Subscribe to device topic if connected and remove from deleted topics if re-adding
     if (connectionStatus.connected) {
       subscribeToTopic(deviceData.topic);
-    } else {
     }
 
     // Remove topic from deleted topics if re-adding manually
-    setDeletedTopics(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(deviceData.topic);
-      return newSet;
-    });
+    const newDeletedTopics = new Set(deletedTopics);
+    newDeletedTopics.delete(deviceData.topic);
+    setDeletedTopics(newDeletedTopics);
 
     // Add to layout if not exists
-    setDeviceLayouts(prev => {
-      const exists = prev.find(layout => layout.i === deviceId);
+    const exists = deviceLayouts.find(layout => layout.i === deviceId);
+    let newLayouts = deviceLayouts;
+    
+    if (!exists) {
+      newLayouts = [...deviceLayouts, {
+        i: deviceId,
+        x: 0,
+        y: Infinity,
+        w: 4,
+        h: 4,
+        minW: 2,
+        maxW: 12,
+        minH: 2,
+        maxH: 8
+      }];
+      setDeviceLayouts(newLayouts);
+    }
+
+    // Save changes to database immediately
+    if (isAuthenticated) {
+      const config = {
+        devices: newDevices,
+        deviceLayouts: newLayouts,
+        deletedTopics: Array.from(newDeletedTopics),
+        deviceFilters,
+        lastUpdated: new Date().toISOString()
+      };
       
-      if (!exists) {
-        const newLayout = [...prev, {
-          i: deviceId,
-          x: 0,
-          y: Infinity,
-          w: 4,
-          h: 4,
-          minW: 2,
-          maxW: 12,
-          minH: 2,
-          maxH: 8
-        }];
-        
-        return newLayout;
-      }
-      return prev;
-    });
+      await saveDashboardConfig(config);
+    }
 
     return deviceId;
-  }, [connectionStatus.connected, subscribeToTopic]);
+  }, [connectionStatus.connected, subscribeToTopic, devices, deviceLayouts, deletedTopics, deviceFilters, isAuthenticated, saveDashboardConfig]);
 
-  const removeDevice = useCallback((deviceId) => {
+  const removeDevice = useCallback(async (deviceId) => {
     const device = devices[deviceId];
     
     if (!device) {
@@ -539,44 +556,31 @@ export const DeviceProvider = ({ children }) => {
     // Unsubscribe from device topic if connected and device exists
     if (device.topic && connectionStatus.connected && unsubscribeFromTopic) {
       unsubscribeFromTopic(device.topic);
-      
-      // Also emit unsubscribe event to make sure it's properly handled
-      try {
-        // Additional cleanup - ensure topic is fully unsubscribed
-      } catch (error) {
-        // Removed console.error for production
-      }
     }
 
-    // Remove device from state
-    setDevices(prev => {
-      const newDevices = { ...prev };
-      delete newDevices[deviceId];
-      
-      // Force cleanup of any null/undefined entries
-      const cleanedDevices = {};
-      Object.entries(newDevices).forEach(([id, deviceData]) => {
-        if (deviceData && typeof deviceData === 'object' && deviceData.id && deviceData.name) {
-          cleanedDevices[id] = deviceData;
-        } else {
-        }
-      });
-      
-      return cleanedDevices;
-    });
+    // Remove device from state immediately
+    const newDevices = { ...devices };
+    delete newDevices[deviceId];
+    setDevices(newDevices);
 
-    // Remove from layout
-    setDeviceLayouts(prev => {
-      const newLayout = prev.filter(layout => layout && layout.i && layout.i !== deviceId);
-      return newLayout;
-    });
+    // Remove from layout immediately
+    const newLayouts = deviceLayouts.filter(layout => layout && layout.i && layout.i !== deviceId);
+    setDeviceLayouts(newLayouts);
     
-    // Force immediate cleanup of invalid devices
-    setTimeout(() => {
-      cleanupInvalidDevices();
-    }, 100);
+    // Save changes to database immediately to prevent reload from overriding
+    if (isAuthenticated) {
+      const config = {
+        devices: newDevices,
+        deviceLayouts: newLayouts,
+        deletedTopics: Array.from(deletedTopics).concat(device.topic ? [device.topic] : []),
+        deviceFilters,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await saveDashboardConfig(config);
+    }
     
-  }, [devices, deviceOfflineTimers, connectionStatus.connected, unsubscribeFromTopic, cleanupInvalidDevices]);
+  }, [devices, deviceLayouts, deviceOfflineTimers, connectionStatus.connected, unsubscribeFromTopic, isAuthenticated, saveDashboardConfig, deletedTopics, deviceFilters]);
 
   const updateDevice = useCallback((deviceId, updates) => {
     setDevices(prev => ({
@@ -588,14 +592,36 @@ export const DeviceProvider = ({ children }) => {
     }));
   }, []);
 
-  const toggleDeviceEnabled = useCallback((deviceId) => {
+  const toggleDeviceEnabled = useCallback(async (deviceId) => {
     const device = devices[deviceId];
     if (!device) return;
     
     const newEnabledState = !device.enabled;
-    updateDevice(deviceId, { enabled: newEnabledState });
     
-  }, [devices, updateDevice]);
+    // Update device immediately for UI responsiveness
+    const updatedDevices = {
+      ...devices,
+      [deviceId]: {
+        ...device,
+        enabled: newEnabledState
+      }
+    };
+    setDevices(updatedDevices);
+    
+    // Save changes to database immediately to persist the state
+    if (isAuthenticated) {
+      const config = {
+        devices: updatedDevices,
+        deviceLayouts,
+        deletedTopics: Array.from(deletedTopics),
+        deviceFilters,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await saveDashboardConfig(config);
+    }
+    
+  }, [devices, deviceLayouts, deletedTopics, deviceFilters, isAuthenticated, saveDashboardConfig]);
 
   const controlDevice = useCallback((deviceId, controlData) => {
     const device = devices[deviceId];

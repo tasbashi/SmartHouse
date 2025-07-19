@@ -158,4 +158,51 @@ router.get('/debug-config', async (req, res) => {
   }
 });
 
+// User settings endpoints
+router.get('/user-settings', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const settings = await database.getAllUserSettings(req.session.userId);
+    res.json({ settings, success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+router.post('/user-settings', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { key, value } = req.body;
+    
+    if (!key) {
+      return res.status(400).json({ error: 'Setting key is required' });
+    }
+
+    await database.saveUserSetting(req.session.userId, key, value);
+    res.json({ message: 'User setting saved', success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+router.get('/user-settings/:key', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { key } = req.params;
+    const value = await database.getUserSetting(req.session.userId, key);
+    res.json({ key, value, success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 module.exports = router; 

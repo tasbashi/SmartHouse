@@ -43,9 +43,9 @@ const Devices = () => {
     online: Object.values(devices).filter(device => device.type === type && device.isOnline).length
   })).filter(stat => stat.count > 0);
 
-  const handleAddDevice = () => {
+  const handleAddDevice = async () => {
     if (newDevice.name && newDevice.topic) {
-      addDevice(newDevice);
+      await addDevice(newDevice);
       setNewDevice({
         name: '',
         type: 'temperature_sensor',
@@ -60,33 +60,21 @@ const Devices = () => {
     const detectedDevices = autoDetectDevices();
     
     if (detectedDevices.length > 0) {
-      detectedDevices.forEach((device, index) => {
-        setTimeout(() => {
-          addDevice(device);
-        }, index * 100);
-      });
-    } else {
+      for (let i = 0; i < detectedDevices.length; i++) {
+        await addDevice(detectedDevices[i]);
+      }
     }
   };
 
-  const handleRemoveDevice = (deviceId) => {
+  const handleRemoveDevice = async (deviceId) => {
     if (window.confirm('Are you sure you want to remove this device?')) {
-      // Add a small delay to show visual feedback
-      const deviceElement = document.querySelector(`[data-device-id="${deviceId}"]`);
-      if (deviceElement) {
-        deviceElement.style.opacity = '0.5';
-        deviceElement.style.transform = 'scale(0.95)';
-        deviceElement.style.transition = 'all 0.2s ease-out';
-      }
-      
-      setTimeout(() => {
-        removeDevice(deviceId);
-        setSelectedDevices(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(deviceId);
-          return newSet;
-        });
-      }, 200);
+      // Immediate remove without delay for better UX
+      await removeDevice(deviceId);
+      setSelectedDevices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(deviceId);
+        return newSet;
+      });
     }
   };
 
@@ -110,23 +98,12 @@ const Devices = () => {
     }
   };
 
-  const handleBulkAction = (action) => {
+  const handleBulkAction = async (action) => {
     if (action === 'remove' && selectedDevices.size > 0) {
       if (window.confirm(`Are you sure you want to remove ${selectedDevices.size} selected devices?`)) {
-        // Add visual feedback for bulk delete
-        selectedDevices.forEach(deviceId => {
-          const deviceElement = document.querySelector(`[data-device-id="${deviceId}"]`);
-          if (deviceElement) {
-            deviceElement.style.opacity = '0.5';
-            deviceElement.style.transform = 'scale(0.95)';
-            deviceElement.style.transition = 'all 0.2s ease-out';
-          }
-        });
-        
-        setTimeout(() => {
-          selectedDevices.forEach(deviceId => removeDevice(deviceId));
-          setSelectedDevices(new Set());
-        }, 200);
+        // Immediate bulk remove without delay for better UX
+        await Promise.all(Array.from(selectedDevices).map(deviceId => removeDevice(deviceId)));
+        setSelectedDevices(new Set());
       }
     }
   };
@@ -526,9 +503,9 @@ const Devices = () => {
                 </div>
                 
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    toggleDeviceEnabled(device.id);
+                    await toggleDeviceEnabled(device.id);
                   }}
                   className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
                     device.enabled ? 'text-success-600' : 'text-gray-400'

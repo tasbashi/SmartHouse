@@ -45,6 +45,44 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Auto-update layout when devices are enabled/disabled
+  useEffect(() => {
+    // When devices change (enabled/disabled), update the layout to ensure consistency
+    const enabledDeviceIds = new Set(deviceList.map(device => device.id));
+    const layoutDeviceIds = new Set(deviceLayouts.map(layout => layout.i));
+    
+    // Check if there's a mismatch between enabled devices and layout
+    const hasLayoutMismatch = enabledDeviceIds.size !== layoutDeviceIds.size ||
+                              [...enabledDeviceIds].some(id => !layoutDeviceIds.has(id));
+    
+    if (hasLayoutMismatch) {
+      // Clean up layout to only include enabled devices
+      const cleanedLayout = deviceLayouts.filter(layout => enabledDeviceIds.has(layout.i));
+      
+      // Add layout entries for enabled devices that don't have one
+      const missingLayouts = [...enabledDeviceIds]
+        .filter(id => !layoutDeviceIds.has(id))
+        .map(id => ({
+          i: id,
+          x: 0,
+          y: Infinity,
+          w: 4,
+          h: 4,
+          minW: 2,
+          maxW: 12,
+          minH: 2,
+          maxH: 8
+        }));
+      
+      const updatedLayout = [...cleanedLayout, ...missingLayouts];
+      
+      if (updatedLayout.length !== deviceLayouts.length || 
+          updatedLayout.some(item => !deviceLayouts.find(l => l.i === item.i))) {
+        updateLayout(updatedLayout);
+      }
+    }
+  }, [deviceList, deviceLayouts, updateLayout]);
+
   // Auto-save function with debouncing
   const autoSaveLayout = useCallback(async (layout) => {
     // Clear existing timeout
@@ -152,15 +190,13 @@ const Dashboard = () => {
 
   const stats = getQuickStats();
 
-  const handleAutoDetect = () => {
-    
+  const handleAutoDetect = async () => {
     const detectedDevices = autoDetectDevices();
     
     if (detectedDevices.length > 0) {
-      detectedDevices.forEach((device, index) => {
-        addDevice(device);
-      });
-    } else {
+      for (let i = 0; i < detectedDevices.length; i++) {
+        await addDevice(detectedDevices[i]);
+      }
     }
   };
 

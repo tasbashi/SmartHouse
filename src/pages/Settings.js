@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useMqtt } from '../contexts/MqttContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import Icon from '../components/ui/Icon';
 
 const Settings = () => {
   const { connectToMqtt, disconnectFromMqtt, connectionStatus } = useMqtt();
   const { isDark, toggleTheme } = useTheme();
+  const { saveUserSetting, getUserSetting } = useAuth();
   
   const [connectionSettings, setConnectionSettings] = useState({
     brokerAddress: '',
@@ -39,6 +41,11 @@ const Settings = () => {
     key: ''
   });
 
+  // Sensor timeout setting state
+  const [sensorTimeout, setSensorTimeout] = useState(60);
+  const [isSavingTimeout, setIsSavingTimeout] = useState(false);
+  const [timeoutMessage, setTimeoutMessage] = useState('');
+
   useEffect(() => {
     // Load saved connection settings
     const saved = localStorage.getItem('mqtt-connection-settings');
@@ -51,6 +58,12 @@ const Settings = () => {
       }
     }
   }, []);
+
+  // Load sensor timeout setting
+  useEffect(() => {
+    const timeoutValue = getUserSetting('sensorTimeout', '60');
+    setSensorTimeout(parseInt(timeoutValue) || 60);
+  }, [getUserSetting]);
 
   // Load certificates on component mount
   useEffect(() => {
@@ -251,6 +264,27 @@ const Settings = () => {
       localStorage.removeItem('smart-home-layout');
       localStorage.removeItem('mqtt-connection-settings');
       window.location.reload();
+    }
+  };
+
+  const saveSensorTimeout = async () => {
+    setIsSavingTimeout(true);
+    setTimeoutMessage('');
+
+    try {
+      const success = await saveUserSetting('sensorTimeout', sensorTimeout.toString());
+      
+      if (success) {
+        setTimeoutMessage('Sensor timeout setting saved successfully!');
+      } else {
+        setTimeoutMessage('Failed to save sensor timeout setting.');
+      }
+    } catch (error) {
+      setTimeoutMessage('Error saving sensor timeout setting.');
+    } finally {
+      setIsSavingTimeout(false);
+      // Clear message after 3 seconds
+      setTimeout(() => setTimeoutMessage(''), 3000);
     }
   };
 
@@ -459,6 +493,69 @@ const Settings = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Sensor Settings */}
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
+            <Icon name="activity" size={20} className="mr-2 inline" />
+            Sensor Settings
+          </h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Sensor Timeout (seconds)
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Duration after which a sensor will be marked as offline if no data is received
+              </p>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="number"
+                  min="10"
+                  max="3600"
+                  className="input w-24"
+                  value={sensorTimeout}
+                  onChange={(e) => setSensorTimeout(parseInt(e.target.value) || 60)}
+                />
+                <span className="text-sm text-gray-500 dark:text-gray-400">seconds</span>
+                <button
+                  onClick={saveSensorTimeout}
+                  disabled={isSavingTimeout}
+                  className="btn btn-primary"
+                >
+                  {isSavingTimeout ? (
+                    <>
+                      <Icon name="refresh" size={16} className="mr-2 spinner" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="save" size={16} className="mr-2" />
+                      Save
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {timeoutMessage && (
+                <div className={`mt-3 p-3 rounded-lg ${
+                  timeoutMessage.includes('success')
+                    ? 'bg-success-50 text-success-800 dark:bg-success-900/20 dark:text-success-200'
+                    : 'bg-danger-50 text-danger-800 dark:bg-danger-900/20 dark:text-danger-200'
+                }`}>
+                  {timeoutMessage}
+                </div>
+              )}
+              
+              <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                <p>• Minimum: 10 seconds</p>
+                <p>• Maximum: 3600 seconds (1 hour)</p>
+                <p>• Default: 60 seconds</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Certificate Management */}

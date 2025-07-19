@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dashboardConfig, setDashboardConfig] = useState({});
+  const [userSettings, setUserSettings] = useState({});
 
   // Check if user is authenticated on app load
   useEffect(() => {
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }) => {
         if (data.authenticated) {
           setUser(data.user);
           await loadDashboardConfig();
+          await loadUserSettings();
         }
       }
     } catch (error) {
@@ -43,6 +45,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (userData) => {
     setUser(userData);
     await loadDashboardConfig();
+    await loadUserSettings();
   };
 
   const logout = async () => {
@@ -55,6 +58,7 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         setUser(null);
         setDashboardConfig({});
+        setUserSettings({});
       }
     } catch (error) {
       // Removed console.error for production
@@ -74,6 +78,46 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       // Removed console.error for production
     }
+  };
+
+  const loadUserSettings = async () => {
+    try {
+      const response = await fetch('/api/auth/user-settings', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserSettings(data.settings || {});
+      }
+    } catch (error) {
+      // Removed console.error for production
+    }
+  };
+
+  const saveUserSetting = async (key, value) => {
+    try {
+      const response = await fetch('/api/auth/user-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ key, value }),
+      });
+      
+      if (response.ok) {
+        setUserSettings(prev => ({ ...prev, [key]: value }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const getUserSetting = (key, defaultValue = null) => {
+    return userSettings[key] || defaultValue;
   };
 
   const saveDashboardConfig = async (config) => {
@@ -108,10 +152,13 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     dashboardConfig,
+    userSettings,
     login,
     logout,
     saveDashboardConfig,
     refreshDashboardConfig,
+    saveUserSetting,
+    getUserSetting,
     isAuthenticated: !!user
   };
 
