@@ -408,14 +408,13 @@ const Dashboard = () => {
           isDraggable={isEditMode}
           isResizable={isEditMode}
           onLayoutChange={handleLayoutChange}
-          compactType={isEditMode ? null : "vertical"}
-          preventCollision={isEditMode}
+          compactType="vertical"
+          preventCollision={false}
           useCSSTransforms={true}
           autoSize={true}
           resizeHandles={isEditMode && window.innerWidth >= 768 ? ['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne'] : []}
           allowOverlap={false}
           isBounded={true}
-          verticalCompact={!isEditMode}
           transformScale={1}
           draggableHandle={isEditMode ? ".widget-card" : ""}
         >
