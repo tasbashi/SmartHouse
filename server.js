@@ -65,7 +65,7 @@ const upload = multer({
   }
 });
 
-// Global MQTT client variable
+// Global MQTT client variable with reconnection support
 let mqttClient = null;
 let connectionStatus = {
   connected: false,
@@ -73,6 +73,150 @@ let connectionStatus = {
   port: '',
   lastConnected: null,
   error: null
+};
+
+// Reconnection configuration
+let reconnectConfig = {
+  enabled: false,
+  maxRetries: 5,
+  currentRetries: 0,
+  retryDelay: 2000, // Start with 2 seconds
+  maxRetryDelay: 30000, // Max 30 seconds
+  connectionOptions: null,
+  timeoutId: null
+};
+
+// Function to attempt reconnection
+const attemptReconnection = () => {
+  if (!reconnectConfig.enabled || reconnectConfig.currentRetries >= reconnectConfig.maxRetries) {
+    if (reconnectConfig.currentRetries >= reconnectConfig.maxRetries) {
+      // Send warning notification to all clients
+      connectionStatus = {
+        ...connectionStatus,
+        connected: false,
+        error: `Bağlantı başarısız! ${reconnectConfig.maxRetries} deneme yapıldı ancak broker'a bağlanılamadı.`
+      };
+      io.emit('connectionStatus', connectionStatus);
+      io.emit('reconnectionFailed', {
+        message: `MQTT broker bağlantısı başarısız! ${reconnectConfig.maxRetries} deneme yapıldı.`,
+        retries: reconnectConfig.currentRetries,
+        maxRetries: reconnectConfig.maxRetries
+      });
+    }
+    reconnectConfig.enabled = false;
+    return;
+  }
+
+  reconnectConfig.currentRetries++;
+  console.log(`MQTT yeniden bağlanma denemesi ${reconnectConfig.currentRetries}/${reconnectConfig.maxRetries}`);
+  
+  // Update connection status to show retry attempt
+  connectionStatus.error = `Yeniden bağlanma denemesi ${reconnectConfig.currentRetries}/${reconnectConfig.maxRetries}...`;
+  io.emit('connectionStatus', connectionStatus);
+
+  try {
+    if (mqttClient) {
+      mqttClient.end(true); // Force close
+    }
+
+    mqttClient = mqtt.connect(
+      `${reconnectConfig.connectionOptions.protocol}://${reconnectConfig.connectionOptions.brokerAddress}`,
+      reconnectConfig.connectionOptions
+    );
+
+    setupMqttEventHandlers();
+
+  } catch (error) {
+    console.error('Reconnection attempt failed:', error);
+    scheduleNextReconnection();
+  }
+};
+
+// Schedule next reconnection attempt
+const scheduleNextReconnection = () => {
+  if (reconnectConfig.timeoutId) {
+    clearTimeout(reconnectConfig.timeoutId);
+  }
+
+  // Exponential backoff with jitter
+  const delay = Math.min(
+    reconnectConfig.retryDelay * Math.pow(2, reconnectConfig.currentRetries - 1),
+    reconnectConfig.maxRetryDelay
+  );
+  
+  reconnectConfig.timeoutId = setTimeout(attemptReconnection, delay);
+};
+
+// Setup MQTT event handlers
+const setupMqttEventHandlers = () => {
+  if (!mqttClient) return;
+
+  mqttClient.on('connect', () => {
+    console.log('MQTT bağlantısı başarılı');
+    reconnectConfig.enabled = false;
+    reconnectConfig.currentRetries = 0;
+    
+    if (reconnectConfig.timeoutId) {
+      clearTimeout(reconnectConfig.timeoutId);
+      reconnectConfig.timeoutId = null;
+    }
+
+    connectionStatus = {
+      connected: true,
+      brokerAddress: reconnectConfig.connectionOptions.brokerAddress,
+      port: reconnectConfig.connectionOptions.port,
+      lastConnected: new Date().toISOString(),
+      error: null
+    };
+    io.emit('connectionStatus', connectionStatus);
+  });
+
+  mqttClient.on('error', (error) => {
+    console.error('MQTT bağlantı hatası:', error.message);
+    connectionStatus = {
+      ...connectionStatus,
+      connected: false,
+      error: error.message
+    };
+    io.emit('connectionStatus', connectionStatus);
+    
+    // Start reconnection if not already running
+    if (!reconnectConfig.enabled && reconnectConfig.connectionOptions) {
+      reconnectConfig.enabled = true;
+      reconnectConfig.currentRetries = 0;
+      attemptReconnection();
+    }
+  });
+
+  mqttClient.on('close', () => {
+    console.log('MQTT bağlantısı kapandı');
+    connectionStatus.connected = false;
+    io.emit('connectionStatus', connectionStatus);
+    
+    // Start reconnection if not already running and if it wasn't a manual disconnect
+    if (!reconnectConfig.enabled && reconnectConfig.connectionOptions) {
+      reconnectConfig.enabled = true;
+      reconnectConfig.currentRetries = 0;
+      scheduleNextReconnection();
+    }
+  });
+
+  mqttClient.on('offline', () => {
+    console.log('MQTT client offline');
+    connectionStatus.connected = false;
+    io.emit('connectionStatus', connectionStatus);
+  });
+
+  mqttClient.on('message', (topic, message, packet) => {
+    const messageData = {
+      topic,
+      message: message.toString(),
+      qos: packet.qos || 0,
+      retain: packet.retain || false,
+      timestamp: new Date().toISOString()
+    };
+    io.emit('mqttMessage', messageData);
+  });
 };
 
 // Socket.IO connection
@@ -260,6 +404,14 @@ app.post('/api/connect', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Broker adresi ve port gerekli' });
     }
 
+    // Stop any existing reconnection attempts
+    reconnectConfig.enabled = false;
+    reconnectConfig.currentRetries = 0;
+    if (reconnectConfig.timeoutId) {
+      clearTimeout(reconnectConfig.timeoutId);
+      reconnectConfig.timeoutId = null;
+    }
+
     // Disconnect existing connection
     if (mqttClient) {
       mqttClient.end();
@@ -270,6 +422,9 @@ app.post('/api/connect', requireAuth, async (req, res) => {
       protocol: useTLS ? 'mqtts' : 'mqtt',
       rejectUnauthorized: false, // For self-signed certificates
       clean: cleanSession !== false, // Default to true if not specified
+      brokerAddress: brokerAddress, // Store for reconnection
+      connectTimeout: 30 * 1000, // 30 seconds
+      reconnectPeriod: 0, // Disable automatic reconnection (we handle it manually)
     };
 
     // Add username/password if provided
@@ -319,50 +474,35 @@ app.post('/api/connect', requireAuth, async (req, res) => {
       }
     }
 
+    // Store connection options for reconnection
+    reconnectConfig.connectionOptions = options;
+
     mqttClient = mqtt.connect(`${options.protocol}://${brokerAddress}`, options);
 
-    mqttClient.on('connect', () => {
-      connectionStatus = {
-        connected: true,
-        brokerAddress,
-        port,
-        lastConnected: new Date().toISOString(),
-        error: null
-      };
-      io.emit('connectionStatus', connectionStatus);
+    // Set up event handlers
+    setupMqttEventHandlers();
+
+    // Add a timeout for initial connection
+    const connectionTimeout = setTimeout(() => {
+      if (!connectionStatus.connected && !res.headersSent) {
+        res.status(500).json({ error: 'Bağlantı zaman aşımı' });
+      }
+    }, 30000);
+
+    // Override connect handler for initial connection response
+    mqttClient.once('connect', () => {
+      clearTimeout(connectionTimeout);
       if (!res.headersSent) {
         res.json({ success: true, message: 'Broker\'a başarıyla bağlandı' });
       }
     });
 
-    mqttClient.on('error', (error) => {
-      connectionStatus = {
-        connected: false,
-        brokerAddress,
-        port,
-        lastConnected: null,
-        error: error.message
-      };
-      io.emit('connectionStatus', connectionStatus);
+    // Override error handler for initial connection response
+    mqttClient.once('error', (error) => {
+      clearTimeout(connectionTimeout);
       if (!res.headersSent) {
         res.status(500).json({ error: `Bağlantı hatası: ${error.message}` });
       }
-    });
-
-    mqttClient.on('close', () => {
-      connectionStatus.connected = false;
-      io.emit('connectionStatus', connectionStatus);
-    });
-
-    mqttClient.on('message', (topic, message, packet) => {
-      const messageData = {
-        topic,
-        message: message.toString(),
-        qos: packet.qos || 0,
-        retain: packet.retain || false,
-        timestamp: new Date().toISOString()
-      };
-      io.emit('mqttMessage', messageData);
     });
 
   } catch (error) {
@@ -373,10 +513,21 @@ app.post('/api/connect', requireAuth, async (req, res) => {
 // Disconnect from MQTT broker
 app.post('/api/disconnect', requireAuth, (req, res) => {
   try {
+    // Stop reconnection attempts
+    reconnectConfig.enabled = false;
+    reconnectConfig.currentRetries = 0;
+    reconnectConfig.connectionOptions = null;
+    
+    if (reconnectConfig.timeoutId) {
+      clearTimeout(reconnectConfig.timeoutId);
+      reconnectConfig.timeoutId = null;
+    }
+
     if (mqttClient) {
       mqttClient.end();
       mqttClient = null;
     }
+    
     connectionStatus.connected = false;
     io.emit('connectionStatus', connectionStatus);
     res.json({ success: true, message: 'Bağlantı kesildi' });

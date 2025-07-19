@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Icon from '../components/ui/Icon';
 
 const Settings = () => {
-  const { connectToMqtt, disconnectFromMqtt, connectionStatus } = useMqtt();
+  const { connectToMqtt, disconnectFromMqtt, connectionStatus, reconnectionStatus } = useMqtt();
   const { isDark, toggleTheme } = useTheme();
   const { saveUserSetting, getUserSetting } = useAuth();
   
@@ -306,6 +306,29 @@ const Settings = () => {
             MQTT Connection
           </h2>
           
+          {/* Connection Status Banner */}
+          {reconnectionStatus.isReconnecting && (
+            <div className="mb-4 p-3 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg">
+              <div className="flex items-center">
+                <Icon name="refresh" size={16} className="mr-2 text-warning-600 dark:text-warning-400 spinner" />
+                <span className="text-warning-800 dark:text-warning-200 text-sm">
+                  Yeniden bağlanma denemesi: {reconnectionStatus.currentRetries}/{reconnectionStatus.maxRetries}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {reconnectionStatus.lastFailure && !reconnectionStatus.isReconnecting && !connectionStatus.connected && (
+            <div className="mb-4 p-3 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg">
+              <div className="flex items-center">
+                <Icon name="alert-triangle" size={16} className="mr-2 text-danger-600 dark:text-danger-400" />
+                <span className="text-danger-800 dark:text-danger-200 text-sm">
+                  MQTT broker bağlantısı başarısız! {reconnectionStatus.maxRetries} deneme yapıldı.
+                </span>
+              </div>
+            </div>
+          )}
+          
           <div className="grid mobile-grid-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -423,13 +446,13 @@ const Settings = () => {
             {!connectionStatus.connected ? (
               <button
                 onClick={handleConnect}
-                disabled={isConnecting}
+                disabled={isConnecting || reconnectionStatus.isReconnecting}
                 className="btn btn-primary w-full sm:w-auto"
               >
-                {isConnecting ? (
+                {isConnecting || reconnectionStatus.isReconnecting ? (
                   <>
                     <Icon name="refresh" size={16} className="mr-2 spinner" />
-                    Connecting...
+                    {reconnectionStatus.isReconnecting ? 'Reconnecting...' : 'Connecting...'}
                   </>
                 ) : (
                   <>
@@ -868,11 +891,27 @@ const Settings = () => {
               <span className={`${
                 connectionStatus.connected 
                   ? 'text-success-600 dark:text-success-400' 
+                  : reconnectionStatus.isReconnecting
+                  ? 'text-warning-600 dark:text-warning-400'
                   : 'text-gray-900 dark:text-white'
               }`}>
-                {connectionStatus.connected ? 'Active' : 'Inactive'}
+                {connectionStatus.connected 
+                  ? 'Active' 
+                  : reconnectionStatus.isReconnecting 
+                  ? `Reconnecting (${reconnectionStatus.currentRetries}/${reconnectionStatus.maxRetries})`
+                  : 'Inactive'
+                }
               </span>
             </div>
+
+            {reconnectionStatus.lastFailure && (
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Last Failure:</span>
+                <span className="text-danger-600 dark:text-danger-400 text-xs">
+                  {new Date(reconnectionStatus.lastFailure).toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

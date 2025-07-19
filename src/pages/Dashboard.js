@@ -10,7 +10,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const Dashboard = () => {
   const { devices, deviceLayouts, updateLayout, clearAllDevices, cleanupInvalidDevices, autoDetectDevices, addDevice, deletedTopics, deviceFilters } = useDevices();
-  const { connectionStatus } = useMqtt();
+  const { connectionStatus, reconnectionStatus } = useMqtt();
   const { refreshDashboardConfig, saveDashboardConfig } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -243,11 +243,33 @@ const Dashboard = () => {
             Dashboard
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
-            Monitor and control your smart home devices
+            {deviceList.length} devices ({onlineDevices.length} online)
           </p>
         </div>
         
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
+          {/* Connection Status Indicator */}
+          <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${
+            connectionStatus.connected 
+              ? 'bg-success-100 dark:bg-success-900/30 text-success-800 dark:text-success-200'
+              : reconnectionStatus.isReconnecting
+              ? 'bg-warning-100 dark:bg-warning-900/30 text-warning-800 dark:text-warning-200'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+          }`}>
+            <div className={`w-2 h-2 rounded-full mr-2 ${
+              connectionStatus.connected 
+                ? 'bg-success-500 dark:bg-success-400'
+                : reconnectionStatus.isReconnecting
+                ? 'bg-warning-500 dark:bg-warning-400 animate-pulse'
+                : 'bg-gray-400 dark:bg-gray-500'
+            }`}></div>
+            {connectionStatus.connected 
+              ? 'MQTT Connected' 
+              : reconnectionStatus.isReconnecting 
+              ? `Reconnecting (${reconnectionStatus.currentRetries}/${reconnectionStatus.maxRetries})`
+              : 'MQTT Disconnected'
+            }
+          </div>
           {/* Edit Mode Toggle */}
           <button
             onClick={handleToggleEditMode}
@@ -282,16 +304,27 @@ const Dashboard = () => {
             {isSyncing ? 'Syncing...' : 'Sync'}
           </button>
           
-          <div className="flex items-center justify-center sm:justify-start space-x-2">
-            <div className={`w-2 h-2 rounded-full ${
-              connectionStatus.connected ? 'bg-success-500' : 'bg-danger-500'
-            }`} />
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {connectionStatus.connected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
+
         </div>
       </div>
+
+      {/* Reconnection Warning Banner */}
+      {reconnectionStatus.lastFailure && !reconnectionStatus.isReconnecting && !connectionStatus.connected && (
+        <div className="mb-6 p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg">
+          <div className="flex items-center">
+            <Icon name="wifi-off" size={20} className="mr-3 text-danger-600 dark:text-danger-400" />
+            <div>
+              <p className="text-danger-800 dark:text-danger-200 font-medium">
+                MQTT Broker Bağlantısı Başarısız
+              </p>
+              <p className="text-danger-600 dark:text-danger-400 text-sm mt-1">
+                {reconnectionStatus.maxRetries} deneme yapıldı ancak broker'a bağlanılamadı. 
+                Lütfen bağlantı ayarlarınızı kontrol edin.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Mode Info Banner */}
       {isEditMode && (

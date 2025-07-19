@@ -21,6 +21,12 @@ export const MqttProvider = ({ children }) => {
     lastConnected: null,
     error: null
   });
+  const [reconnectionStatus, setReconnectionStatus] = useState({
+    isReconnecting: false,
+    currentRetries: 0,
+    maxRetries: 5,
+    lastFailure: null
+  });
   const [messages, setMessages] = useState([]);
   const [subscribedTopics, setSubscribedTopics] = useState(new Set());
 
@@ -39,6 +45,46 @@ export const MqttProvider = ({ children }) => {
 
     newSocket.on('connectionStatus', (status) => {
       setConnectionStatus(status);
+      
+      // Reset reconnection status if successfully connected
+      if (status.connected) {
+        setReconnectionStatus({
+          isReconnecting: false,
+          currentRetries: 0,
+          maxRetries: 5,
+          lastFailure: null
+        });
+      }
+      
+      // Update reconnection status if error contains retry information
+      if (status.error && status.error.includes('Yeniden bağlanma denemesi')) {
+        const match = status.error.match(/(\d+)\/(\d+)/);
+        if (match) {
+          setReconnectionStatus(prev => ({
+            ...prev,
+            isReconnecting: true,
+            currentRetries: parseInt(match[1]),
+            maxRetries: parseInt(match[2])
+          }));
+        }
+      }
+    });
+
+    newSocket.on('reconnectionFailed', (data) => {
+      setReconnectionStatus({
+        isReconnecting: false,
+        currentRetries: data.retries,
+        maxRetries: data.maxRetries,
+        lastFailure: new Date().toISOString()
+      });
+      
+      // Show browser notification if supported
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('MQTT Bağlantı Hatası', {
+          body: data.message,
+          icon: '/favicon.ico'
+        });
+      }
     });
 
     newSocket.on('mqttMessage', (data) => {
@@ -61,6 +107,13 @@ export const MqttProvider = ({ children }) => {
     return () => {
       newSocket.close();
     };
+  }, []);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
   const connectToMqtt = useCallback(async (connectionParams) => {
@@ -150,6 +203,7 @@ export const MqttProvider = ({ children }) => {
   const value = {
     isConnected,
     connectionStatus,
+    reconnectionStatus,
     messages,
     subscribedTopics: Array.from(subscribedTopics),
     connectToMqtt,
